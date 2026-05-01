@@ -8,7 +8,6 @@ export function ConnectButton() {
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
 
-  // Provision users row on first connect — fire and forget
   useEffect(() => {
     if (!isConnected || !address) return
     fetch('/api/users/upsert', {
@@ -22,9 +21,12 @@ export function ConnectButton() {
     return (
       <button
         onClick={() => disconnect()}
-        className="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-medium font-mono transition-colors"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/20 transition-colors group"
       >
-        {address.slice(0, 6)}…{address.slice(-4)}
+        <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+        <span className="font-mono text-xs text-ink/70 group-hover:text-ink transition-colors">
+          {address.slice(0, 6)}…{address.slice(-4)}
+        </span>
       </button>
     )
   }
@@ -35,9 +37,9 @@ export function ConnectButton() {
     <button
       onClick={() => connector && connect({ connector })}
       disabled={isPending || !connector}
-      className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-medium transition-colors disabled:opacity-50"
+      className="px-4 py-1.5 rounded-lg bg-accent text-canvas text-xs font-semibold font-mono hover:bg-accent-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed tracking-wide"
     >
-      {isPending ? 'Connecting…' : 'Connect Wallet'}
+      {isPending ? 'connecting…' : 'connect wallet'}
     </button>
   )
 }

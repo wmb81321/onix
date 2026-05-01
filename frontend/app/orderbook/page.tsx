@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase'
 import type { Order } from '@/lib/supabase'
 import { OrderBookClient } from './orderbook-client'
 
-// Server component — initial data fetch; real-time updates in the client component
 export default async function OrderBookPage() {
   const supabase = createClient()
 
@@ -16,8 +15,14 @@ export default async function OrderBookPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">Order Book</h2>
-        <span className="text-sm text-gray-400">Live · Tempo testnet</span>
+        <div>
+          <h2 className="text-lg font-semibold text-ink tracking-tight">Order Book</h2>
+          <p className="text-[12px] font-mono text-dim mt-0.5">open orders · realtime</p>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-accent/20 bg-accent/[0.05]">
+          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+          <span className="font-mono text-[11px] text-accent tracking-wider">LIVE</span>
+        </div>
       </div>
       <OrderBookClient initialOrders={(orders as Order[]) ?? []} />
     </div>
