@@ -2,13 +2,11 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copy agent package.json and install dependencies
-COPY agent/package.json ./
+COPY package.json ./
 RUN npm install
 
-# Copy agent source
-COPY agent/src ./src
-COPY agent/tsconfig.json ./
+COPY src ./src
+COPY tsconfig.json ./
 
 ENV NODE_ENV=production
 
