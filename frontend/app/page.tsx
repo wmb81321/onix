@@ -8,13 +8,13 @@ export default function HomePage() {
       <div className="text-center space-y-5 max-w-2xl">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-accent/20 bg-accent/[0.06] text-accent font-mono text-[11px] tracking-widest uppercase mb-2">
           <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-          Moderato · Chain 42431 · Testnet
+          Stripe · Tempo · Link · MPP
         </div>
 
         <h1 className="text-4xl sm:text-[2.75rem] font-semibold tracking-tight text-ink leading-[1.15]">
           Crypto ↔ fiat settlement.
           <br />
-          <span className="text-accent">No trust required.</span>
+          <span className="text-accent">Trustless p2p agentic market.</span>
         </h1>
 
         <p className="text-dim text-[15px] leading-relaxed max-w-lg mx-auto">
