@@ -15,9 +15,11 @@ export async function POST(req: NextRequest) {
   const { address } = parsed.data
   const db = createServerClient()
 
+  // ignoreDuplicates: true — only inserts on first connect; never overwrites
+  // existing data (stripe_account, rating_avg, etc.) on subsequent connects.
   const { error: upsertError } = await db
     .from('users')
-    .upsert({ address, stripe_account: null })
+    .upsert({ address }, { onConflict: 'address', ignoreDuplicates: true })
 
   if (upsertError) {
     return NextResponse.json({ error: upsertError.message }, { status: 500 })
