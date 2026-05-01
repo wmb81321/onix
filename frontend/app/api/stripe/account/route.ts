@@ -37,13 +37,14 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // Create a new Express Connect account for the seller
+  // Create a new Express Connect account for the seller.
+  // Do NOT pre-request capabilities — for recipient accounts in Colombia
+  // Stripe requires the user to accept the recipient service agreement
+  // during hosted onboarding. Pre-requesting 'transfers' here causes a
+  // 400 "recipient service agreement must be accepted first".
   const account = await stripe.accounts.create({
     type:    'express',
     country: 'CO',
-    capabilities: {
-      transfers: { requested: true },
-    },
     metadata: { wallet_address: user_address },
   })
 
