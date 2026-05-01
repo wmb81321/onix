@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { BalanceDisplay } from './balance-display'
+import { StripeConnectButton } from './stripe-connect-button'
 
 type OrderType = 'buy' | 'sell'
 
@@ -14,11 +15,12 @@ interface Props {
 
 export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
   const { address } = useAccount()
-  const [type,        setType]        = useState<OrderType>('sell')
-  const [usdcAmount,  setUsdcAmount]  = useState('')
-  const [rate,        setRate]        = useState('1.00')
-  const [error,       setError]       = useState<string | null>(null)
-  const [submitting,  setSubmitting]  = useState(false)
+  const [type,           setType]           = useState<OrderType>('sell')
+  const [usdcAmount,     setUsdcAmount]     = useState('')
+  const [rate,           setRate]           = useState('1.00')
+  const [error,          setError]          = useState<string | null>(null)
+  const [submitting,     setSubmitting]     = useState(false)
+  const [stripeReady,    setStripeReady]    = useState(false)
 
   // Reset on open
   useEffect(() => {
@@ -38,6 +40,11 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
     if (!address) { setError('Connect your wallet first'); return }
     if (usdc < 5)  { setError('Minimum order is 5 USDC');  return }
     if (rateNum <= 0) { setError('Rate must be positive'); return }
+
+    if (type === 'sell' && !stripeReady) {
+      setError('Connect your Stripe account to receive USD payouts before placing a sell order')
+      return
+    }
 
     setSubmitting(true)
     setError(null)
@@ -162,6 +169,14 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
             <span className="font-mono text-dim/50">Your balance</span>
             <BalanceDisplay className="font-mono" />
           </div>
+
+          {/* Stripe connect — required for sell orders */}
+          {type === 'sell' && (
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[10px] text-dim/50">Stripe payout</span>
+              <StripeConnectButton onStatusChange={setStripeReady} />
+            </div>
+          )}
 
           {/* Error */}
           {error && (
