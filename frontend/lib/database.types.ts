@@ -1,5 +1,4 @@
 // Auto-generate the real version with: supabase gen types typescript --project-id xhvbabjfsofgllupiypo
-// This is the hand-written version matching 001_schema.sql
 
 export type Database = {
   public: {
@@ -12,8 +11,14 @@ export type Database = {
           trade_count: number
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['users']['Row'], 'rating_avg' | 'trade_count' | 'created_at'>
-        Update: Partial<Database['public']['Tables']['users']['Insert']>
+        Insert: {
+          address: string
+          stripe_account?: string | null
+        }
+        Update: {
+          stripe_account?: string | null
+        }
+        Relationships: []
       }
       orders: {
         Row: {
@@ -27,8 +32,25 @@ export type Database = {
           expires_at: string
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['orders']['Row'], 'id' | 'status' | 'expires_at' | 'created_at'>
-        Update: Partial<Pick<Database['public']['Tables']['orders']['Row'], 'status'>>
+        Insert: {
+          user_address: string
+          type: Database['public']['Enums']['order_type']
+          usdc_amount: number
+          usd_amount: number
+          rate: number
+        }
+        Update: {
+          status?: Database['public']['Enums']['order_status']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'orders_user_address_fkey'
+            columns: ['user_address']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['address']
+          },
+        ]
       }
       trades: {
         Row: {
@@ -46,8 +68,28 @@ export type Database = {
           created_at: string
           updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['trades']['Row'], 'id' | 'status' | 'deposit_deadline' | 'created_at' | 'updated_at' | 'stripe_payout_id' | 'stripe_account_id'>
-        Update: Partial<Pick<Database['public']['Tables']['trades']['Row'], 'status' | 'stripe_payout_id' | 'stripe_account_id'>>
+        Insert: {
+          order_id: string
+          buyer_address: string
+          seller_address: string
+          usdc_amount: number
+          usd_amount: number
+          virtual_deposit_address: string
+        }
+        Update: {
+          status?: Database['public']['Enums']['trade_status']
+          stripe_payout_id?: string | null
+          stripe_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'trades_order_id_fkey'
+            columns: ['order_id']
+            isOneToOne: false
+            referencedRelation: 'orders'
+            referencedColumns: ['id']
+          },
+        ]
       }
       ratings: {
         Row: {
@@ -59,10 +101,27 @@ export type Database = {
           comment: string | null
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['ratings']['Row'], 'id' | 'created_at'>
-        Update: never
+        Insert: {
+          trade_id: string
+          rater_address: string
+          ratee_address: string
+          score: number
+          comment?: string | null
+        }
+        Update: Record<string, never>
+        Relationships: [
+          {
+            foreignKeyName: 'ratings_trade_id_fkey'
+            columns: ['trade_id']
+            isOneToOne: false
+            referencedRelation: 'trades'
+            referencedColumns: ['id']
+          },
+        ]
       }
     }
+    Views: Record<string, never>
+    Functions: Record<string, never>
     Enums: {
       order_type: 'buy' | 'sell'
       order_status: 'open' | 'matched' | 'cancelled' | 'expired'

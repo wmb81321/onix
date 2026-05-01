@@ -6,38 +6,55 @@ Convexo P2P is an agentic crypto-fiat settlement app where an AI Agent coordinat
 
 ## Current Build Status (2026-05-01)
 
-**Infrastructure is fully operational. Settlement flows are the next milestone.**
+**Flow A deployed and end-to-end validated on Railway. Frontend deploying to Vercel.**
 
 | Layer | Status | Notes |
 |---|---|---|
-| Supabase schema + RLS | ✓ Live | `users`, `orders`, `trades`, `ratings` — applied to production |
+| Supabase schema + RLS | ✓ Live | `users`, `orders`, `trades`, `ratings` — production |
 | Tempo Virtual Address | ✓ Registered | `AGENT_MASTER_ID=0x3ead6d3d`, on-chain Moderato testnet |
-| Agent wallet (EOA) | ✓ Funded | `AGENT_ACCESS_KEY_ADDRESS=0x6772787e16a7ea4c5307cc739cc5116b4b26ffc0` |
-| Railway agent | ✓ Live | `https://convexo-p2p-agent-production.up.railway.app` — health check ok |
-| Stripe webhook | ✓ Registered | Live mode (`we_1TSCLoIGWVzmFM6GKEWLa7QD`), all keys in `.env` |
-| mppx/server | ✓ Verified | `import { Mppx, NodeListener, tempo } from 'mppx/server'` — works |
-| Flow A agent (`flowA.ts`) | ✓ Built | All 5 phases complete — see [0.5.0] in CHANGELOG |
-| Flow B agent (`flowB.ts`) | ✗ Not built | Needs `/auth-stripe-link` first, then SPT integration |
-| Frontend order book | ✗ Stub | `app/` exists, routes not wired to agent yet |
+| Agent wallet (EOA) | ✓ Funded | `0x6772787e16a7ea4c5307cc739cc5116b4b26ffc0` (~0.5 USDC after test) |
+| Railway agent | ✓ Live v0.5.1 | `https://convexo-p2p-agent-production.up.railway.app` |
+| Railway deploy method | ✓ Git-push | Repo: `wmb81321/onix`, root dir: `/agent`, builder: Dockerfile |
+| Vercel frontend | ✓ Deploying | Repo: `wmb81321/onix`, root dir: `/frontend`, Next.js |
+| Stripe webhook | ✓ Registered | Live mode (`we_1TSCLoIGWVzmFM6GKEWLa7QD`) |
+| Flow A agent (`flowA.ts`) | ✓ E2E tested | Webhook → USDC release confirmed on Moderato (tx `0xb8d589db...`) |
+| Flow A SPT step | ✗ TODO | `continueAfterFeePaid` draws from platform balance; needs `/auth-stripe-link` |
+| Flow B agent (`flowB.ts`) | ✗ Not built | Blocked on `/auth-stripe-link` + SPT integration |
+| Frontend wallet auth | ✓ Done | `ConnectButton` → `tempoWallet()` → upserts `users` row via `/api/users/upsert` |
+| Frontend API routes | ✗ Stub | `frontend/app/api/` has `/users/upsert`; still needs trades + orders proxy routes |
+| Frontend UI | ✗ Stub | Order book read-only; Place Order + Match + trade tracker not yet built |
 
-**Start here for the next session:** `CLAUDE.local.md` → "What's next" section.
+**Next priorities:**
+1. Phase 2 — API proxy routes (`/api/trades`, `/api/orders`, `/api/trades/[id]/settle`)
+2. Phase 3a — Place Order form + Match button on order book rows
+3. Phase 3b — Trade tracker page (`/trades/[id]`) with Supabase Realtime
+4. Phase 4 — Stripe Link onboarding + SPT step in Flow A
+5. Phase 5 — Flow B + ratings
 
 ---
 
 ## Folder Structure
 
-| Folder | Purpose |
-|---|---|
-| `app/` | Next.js App Router — order book UI, Tempo Wallet (`tempoWallet()` connector), trade tracker, Stripe Link onboarding |
-| `app/api/` | Order, trade, and Stripe webhook routes |
-| `agent/` | TypeScript settlement runtime — boots MPP server, drives state machine, monitors deposits |
-| `agent/src/flows/` | `flowA.ts` (crypto→fiat), `flowB.ts` (fiat→crypto) — one orchestrator per flow |
-| `agent/src/tempo/` | `wallet.ts` (master transfer ops), `monitor.ts` (TIP-20 Transfer event watcher), virtual address derivation |
-| `agent/src/stripe/` | `payouts.ts` (Global Payouts), `webhook.ts` (constructEvent + dispatch), SPT execution |
-| `mcp-servers/` | Project MCPs — `stripe-payouts/` (build first), `x402-mpp/` (build second) |
-| `supabase/` | SQL migrations + RLS policies for `orders`, `trades`, `ratings` |
-| `docs/` | `agenticp2p.md` and architecture references |
-| `.claude/` | Workspace rules, slash commands, hooks for Claude Code |
+| Folder | Purpose | Deployed to |
+|---|---|---|
+| `frontend/` | Next.js App Router — order book UI, Tempo Wallet (`tempoWallet()` connector), trade tracker, Stripe Link onboarding | Vercel |
+| `frontend/app/api/` | Server-side proxy routes that forward to Railway agent (`FACILITATOR_URL`). NOT the agent itself — just thin Next.js route handlers. | Vercel (server) |
+| `agent/` | TypeScript settlement runtime — boots MPP server, drives state machine, monitors deposits | Railway (persistent server) |
+| `agent/src/flows/` | `flowA.ts` (crypto→fiat), `flowB.ts` (fiat→crypto) — one orchestrator per flow | Railway |
+| `agent/src/tempo/` | `wallet.ts` (master transfer ops), `monitor.ts` (TIP-20 Transfer event watcher), virtual address derivation | Railway |
+| `agent/src/stripe/` | `payouts.ts` (Global Payouts), `webhook.ts` (constructEvent + dispatch), SPT execution | Railway |
+| `mcp-servers/` | Project MCPs — `stripe-payouts/` (build first), `x402-mpp/` (build second) | Local / Claude Code |
+| `supabase/` | SQL migrations + RLS policies for `orders`, `trades`, `ratings` | Supabase (production) |
+| `docs/` | `agenticp2p.md` and architecture references | — |
+| `.claude/` | Workspace rules, slash commands, hooks for Claude Code | — |
+
+### Why two deployments?
+
+The **agent** needs a persistent long-running process (deposit monitor, Stripe webhook listener, on-chain signing via access key). Vercel serverless functions time out and can't maintain state between requests — incompatible with the settlement runtime.
+
+The **frontend** on Vercel calls the agent via `FACILITATOR_URL` (server-only env var, never exposed to the browser). Planned proxy routes:
+- `frontend/app/api/trades/route.ts` — `POST` creates a trade (forwards to `FACILITATOR_URL/trades`)
+- `frontend/app/api/trades/[id]/settle/route.ts` — `POST` triggers settlement (forwards to `FACILITATOR_URL/trades/:id/settle`)
 
 ---
 
@@ -132,9 +149,9 @@ All tools confirmed working. See `mcp.json` for project-level server config.
 |---|---|---|
 | `tempo` | Logged in — Moderato key expires 2026-05-31 | `tempo wallet keys`, `tempo wallet transfer`, `tempo wallet services` |
 | `stripe` | Authenticated, projects plugin installed | `stripe listen`, `stripe trigger`, `stripe events resend` |
-| `railway` | Logged in as wmb81321@gmail.com | `railway up`, `railway logs`, `railway variables set` |
+| `railway` | Logged in as wmb81321@gmail.com | **`git push origin main`** triggers deploy (GitHub integration); `railway logs`, `railway variables set` |
 | `cast` (Foundry) | Ready, no auth needed | `cast send`, `cast balance`, `cast call` |
-| `npx @stripe/link-cli` | **NOT authenticated** — run `/auth-stripe-link` | `auth login`, `auth status` |
+| `npx @stripe/link-cli` | ✓ Authenticated | `auth login`, `auth status`, `spend-request create` |
 | `supabase` CLI | Not installed — use `plugin:supabase` MCP instead | — |
 
 ---

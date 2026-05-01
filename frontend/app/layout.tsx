@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { Providers } from './providers'
+import { ConnectButton } from '@/components/connect-button'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -27,17 +28,5 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Providers>
       </body>
     </html>
-  )
-}
-
-// Inline connect button — extracted to a real component in Week 2
-function ConnectButton() {
-  return (
-    <button
-      className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-medium transition-colors"
-      // onClick handled by ConnectWallet component (Week 2)
-    >
-      Connect Wallet
-    </button>
   )
 }

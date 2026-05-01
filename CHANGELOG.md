@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-05-01
+### Added — Phase 1: frontend wallet auth + user provisioning
+
+- `frontend/components/connect-button.tsx` — real `tempoWallet()` connect/disconnect button using wagmi `useConnect`/`useAccount`/`useDisconnect`; fires `POST /api/users/upsert` on first connect to provision the Supabase `users` row
+- `frontend/app/api/users/upsert/route.ts` — server-side Next.js route; uses service-role Supabase client (bypasses RLS) to upsert the user by wallet address; validates address with zod regex
+- `frontend/lib/supabase-server.ts` — service-role Supabase client for server-only routes; throws clearly if env vars are missing
+- `frontend/hooks/use-current-user.ts` — returns the connected wallet's `users` row via anon client (readable by all due to `using (true)` RLS policy on users)
+- `frontend/app/layout.tsx` — replaced static `<button>` stub with real `<ConnectButton />`
+- `frontend/lib/database.types.ts` — fixed: added `Relationships: []` on every table, `Views`, and `Functions` required by `@supabase/postgrest-js` v2.105.1 `GenericSchema` / `GenericTable` constraints; without these the entire `Schema` resolved as `never`, silently breaking all write operations
+- `zod` added to `frontend/package.json`
+
+### Env vars required on Vercel
+- `SUPABASE_SERVICE_ROLE_KEY` — service-role key from Supabase dashboard (server-only, never `NEXT_PUBLIC_`)
+- `FACILITATOR_URL=https://convexo-p2p-agent-production.up.railway.app` — server-only
+
+## [0.5.2] — 2026-05-01
+### Added / Fixed — Railway GitHub integration + Flow A E2E on production
+
+- **Railway deploy method changed to GitHub push** — connected repo `wmb81321/onix`, root dir `/agent`, builder: Dockerfile. `railway up` no longer used (it archives git-committed state only; working-tree changes were silently excluded).
+- **`agent/Dockerfile` COPY paths corrected** — build context when Railway root dir is `/agent` means `COPY package.json ./` not `COPY agent/package.json ./`. Fixed all three COPY lines.
+- **`MPP_SECRET_KEY` added to Railway env** — was missing entirely, causing agent to crash-loop on every boot with `Invalid or missing environment variables: MPP_SECRET_KEY: Required`.
+- **`TEMPO_TESTNET_RPC_URL` added to Railway env** — `chain.ts` falls back to mainnet RPC if unset; with `TEMPO_CHAIN_ID=42431` (Moderato) this was a chain-ID mismatch. Value: `https://rpc.moderato.tempo.xyz`.
+- **Flow A end-to-end confirmed on Railway production** — `POST /webhooks/stripe` with signed `transfer.paid` payload → trade advances to `released` → on-chain USDC transfer fired (tx `0xb8d589db44188522b441f11a4f69022e96efb1718d7acc3c738cf78101c65ab3`, Moderato testnet).
+- **`frontend/vercel.json` created** — framework: nextjs, root dir `/frontend` for Vercel GitHub integration. Frontend deploying to Vercel.
+- **`.env.example` updated** — added `AGENT_MASTER_SALT`, `AGENT_ACCESS_KEY_ADDRESS`, `MPP_SECRET_KEY`, `TEMPO_TESTNET_RPC_URL`, `TEMPO_CHAIN_ID`, `TEMPO_PATHUSDC_ADDRESS`; corrected testnet RPC URL.
+- **CLAUDE.md Folder Structure** — corrected `app/` → `frontend/`; added deployment targets (Railway vs Vercel); documented `frontend/app/api/` as proxy layer for agent, not the agent itself; clarified `FACILITATOR_URL` = Railway agent URL.
+
+### Architecture note
+`FACILITATOR_URL=https://convexo-p2p-agent-production.up.railway.app` is a **server-only** Vercel env var. Frontend API route handlers on Vercel forward to this URL. The agent itself always runs on Railway as a persistent process.
+
 ## [0.5.1] — 2026-05-01
 ### Fixed — Flow A test run + API corrections
 

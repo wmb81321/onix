@@ -2,7 +2,8 @@
 
 Agentic P2P crypto-fiat settlement on Tempo. An AI Agent coordinates trades between unknown counterparties — using Tempo Virtual Addresses for deposit attribution, Stripe Link for fiat, and MPP session middleware for service fees. No custom Solidity, no centralized exchange, no custody held by Convexo.
 
-**Agent (testnet):** `https://convexo-p2p-agent-production.up.railway.app`
+**Agent (Railway):** `https://convexo-p2p-agent-production.up.railway.app`  
+**Frontend (Vercel):** deploying — repo root `/frontend`
 
 ## Settlement Flows
 
@@ -29,9 +30,13 @@ Tempo · Stripe Link · x402/MPP (`mppx`) · Supabase · Next.js
 ```bash
 git clone <repo-url> convexo_p2p
 cd convexo_p2p
-pnpm install
 # .env already contains all required keys (Stripe live, Supabase, Tempo, agent wallet)
-pnpm dev                              # boots Next.js app + agent
+
+# Run agent locally (port 3001)
+cd agent && npm install && npx tsx src/index.ts
+
+# Run frontend locally (port 3000)
+cd frontend && npm install && npm run dev
 ```
 
 Forward Stripe webhooks to the local agent:
@@ -41,9 +46,27 @@ stripe listen --forward-to localhost:3001/webhooks/stripe
 # Copy the printed whsec_... into .env as STRIPE_WEBHOOK_SECRET
 ```
 
+## Deployment
+
+| Service | Platform | Trigger |
+|---|---|---|
+| Agent runtime | Railway | `git push origin main` → auto-deploy (root dir: `/agent`, Dockerfile builder) |
+| Frontend | Vercel | `git push origin main` → auto-deploy (root dir: `/frontend`, Next.js) |
+
+The agent runs as a **persistent server** on Railway — the deposit monitor and webhook listener must stay alive between requests. The frontend on Vercel calls the agent via `FACILITATOR_URL` (server-only env var).
+
+```bash
+# Agent env vars (Railway dashboard or CLI)
+railway variables set KEY=value
+
+# Check agent logs
+railway logs --tail
+```
+
 ## Folder Map
 
-- `app/` — Next.js App Router: order book UI, Tempo Wallet connector, trade tracker
+- `frontend/` — Next.js App Router: order book UI, Tempo Wallet connector, trade tracker
+- `frontend/app/api/` — Server-side proxy routes forwarding to Railway agent (`FACILITATOR_URL`)
 - `agent/` — TypeScript settlement runtime: MPP server, state machine, deposit monitor
 - `mcp-servers/` — project MCPs: `stripe-payouts/`, `x402-mpp/`
 - `supabase/` — schema migrations, RLS policies
