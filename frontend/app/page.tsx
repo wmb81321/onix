@@ -24,23 +24,13 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* CTAs */}
-      <div className="flex items-center gap-3">
-        <Link
-          href="/orderbook"
-          className="px-5 py-2.5 rounded-lg bg-accent text-canvas text-sm font-semibold hover:bg-accent-2 transition-colors"
-        >
-          Open Order Book →
-        </Link>
-        <a
-          href="https://wallet.tempo.xyz"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-5 py-2.5 rounded-lg border border-white/10 text-dim text-sm font-medium hover:border-white/20 hover:text-ink transition-colors"
-        >
-          Get Tempo Wallet
-        </a>
-      </div>
+      {/* CTA */}
+      <Link
+        href="/orderbook"
+        className="px-5 py-2.5 rounded-lg bg-accent text-canvas text-sm font-semibold hover:bg-accent-2 transition-colors"
+      >
+        Open Order Book →
+      </Link>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-px bg-white/[0.06] rounded-xl overflow-hidden w-full max-w-md">
