@@ -15,7 +15,7 @@ type Route = {
 
 export type Router = ReturnType<typeof createRouter>
 
-export function createRouter() {
+export function createRouter(apiKey?: string) {
   const routes: Route[] = []
 
   function register(method: string, path: string, handler: RouteHandler) {
@@ -33,6 +33,19 @@ export function createRouter() {
     async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
       const url    = (req.url ?? '/').split('?')[0] ?? '/'
       const method = req.method ?? 'GET'
+
+      // Bearer auth — exempt /health and /webhooks/stripe
+      if (apiKey) {
+        const exempt = url === '/health' || url === '/webhooks/stripe'
+        if (!exempt) {
+          const authHeader = req.headers['authorization']
+          if (!authHeader || authHeader !== `Bearer ${apiKey}`) {
+            res.writeHead(401, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Unauthorized' }))
+            return
+          }
+        }
+      }
 
       for (const route of routes) {
         if (route.method !== method) continue

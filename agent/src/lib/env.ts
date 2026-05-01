@@ -30,6 +30,8 @@ const schema = z.object({
   CHARGE_AMOUNT_USDC: z.coerce.number().default(0.1),
   // Used by mppx to HMAC-bind challenge IDs (stateless verification)
   MPP_SECRET_KEY:     z.string().min(16),
+  // Bearer token required on all agent routes except /health and /webhooks/stripe
+  AGENT_API_KEY:      z.string().min(32),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 })
 

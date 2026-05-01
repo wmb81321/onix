@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type { Router } from '../lib/router.js'
 import { readJsonBody, json } from '../lib/router.js'
@@ -25,41 +26,48 @@ export function registerTradeRoutes(router: Router): void {
     const body = CreateTradeBody.parse(await readJsonBody(req))
 
     const deadline = new Date(Date.now() + DEPOSIT_TIMEOUT_MS).toISOString()
-
-    // Derive the virtual deposit address off-chain (free, instant)
     const masterId = ENV.AGENT_MASTER_ID as `0x${string}`
 
-    // We need the trade ID before we can derive the address.
-    // Insert with a placeholder, then update — or use a generated UUID.
+    // Atomically lock the order — concurrent requests will find status != 'open' and get 409
+    const { data: matchedOrder, error: matchError } = await db
+      .from('orders')
+      .update({ status: 'matched' })
+      .eq('id', body.order_id)
+      .eq('status', 'open')
+      .select('id')
+      .maybeSingle()
+
+    if (matchError) throw new Error(`Failed to match order: ${matchError.message}`)
+    if (!matchedOrder) {
+      json(res, 409, { error: 'Order is no longer available' })
+      return
+    }
+
+    // Generate UUID upfront so we can derive the virtual address before writing to DB
+    const tradeId = randomUUID()
+    const virtualAddress = deriveDepositAddress(masterId, tradeId)
+
     const { data: trade, error: insertError } = await db
       .from('trades')
       .insert({
+        id:              tradeId,
         order_id:        body.order_id,
         buyer_address:   body.buyer_address,
         seller_address:  body.seller_address,
         usdc_amount:     body.usdc_amount,
         usd_amount:      body.usd_amount,
         deposit_deadline: deadline,
-        // temporary placeholder — updated immediately below
-        virtual_deposit_address: '0x0000000000000000000000000000000000000000',
+        virtual_deposit_address: virtualAddress,
         status: 'created',
       })
       .select('id')
       .single()
 
     if (insertError ?? !trade) {
+      // Roll back the order status so it can be matched again
+      await db.from('orders').update({ status: 'open' }).eq('id', body.order_id)
       throw new Error(`Failed to create trade: ${insertError?.message ?? 'no data'}`)
     }
-
-    const virtualAddress = deriveDepositAddress(masterId, trade.id)
-
-    await db
-      .from('trades')
-      .update({ virtual_deposit_address: virtualAddress })
-      .eq('id', trade.id)
-
-    // Mark the order as matched
-    await db.from('orders').update({ status: 'matched' }).eq('id', body.order_id)
 
     // Start deposit watcher (non-blocking — do not await)
     const expectedAmount = BigInt(Math.round(body.usdc_amount * 1e6))

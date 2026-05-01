@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-05-01
+### Security — Phase 0: agent auth + atomic trade creation
+
+- **`AGENT_API_KEY` bearer auth** — all Railway agent routes except `/health` and `/webhooks/stripe` now require `Authorization: Bearer <AGENT_API_KEY>`; returns 401 otherwise. `AGENT_API_KEY` (min 32 chars) validated by `env.ts` zod schema at startup. Added to `.env.example`.
+- **`agent/src/lib/router.ts`** — `createRouter(apiKey?)` accepts an optional API key; auth check runs before route matching; both exempt routes match by exact URL string.
+- **Race condition fixed — order double-match** — `POST /trades` now atomically updates the order from `open → matched` with `WHERE status = 'open'` BEFORE creating the trade. If 0 rows updated (concurrent match), returns 409 immediately. Previously two concurrent requests could both succeed.
+- **`virtual_deposit_address` placeholder eliminated** — `agent/src/routes/trades.ts` now generates the trade UUID client-side with `randomUUID()`, derives the virtual address off-chain, then does a single atomic `INSERT` with both fields. No more `0x000...000` placeholder followed by a second `UPDATE`. If the insert fails, the order is rolled back to `open`.
+
+### Fixed — Vercel deployment + frontend chain config
+
+- **`frontend/package-lock.json` deleted** — was created by accidental `npm install zod` inside the pnpm workspace, causing Vercel to switch package managers and only install 23/46 packages.
+- **`frontend/vercel.json` installCommand** — changed from `npm install` to `cd .. && pnpm install --frozen-lockfile` so Vercel installs from the workspace root lockfile.
+- **`frontend/lib/wagmi.ts` chain fixed** — was using `tempo` (mainnet, chain ID 4217); now uses `tempoModerato` (Moderato testnet, chain ID 42431) matching the agent and all on-chain state.
+- **`frontend/.env.local` RPC URL** — updated `NEXT_PUBLIC_TEMPO_RPC_URL` to `https://rpc.moderato.tempo.xyz` (testnet).
+
+### Railway env vars required
+- `AGENT_API_KEY` — must match the value in `.env`; generated with `openssl rand -hex 32`
+
 ## [0.6.0] — 2026-05-01
 ### Added — Phase 1: frontend wallet auth + user provisioning
 

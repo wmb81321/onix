@@ -24,12 +24,12 @@ async function main() {
   registerFlowAHandlers()
   console.log('[agent] Flow A handlers registered ✓')
 
-  // Build router
-  const router = createRouter()
+  // Build router — API key gates all routes except /health and /webhooks/stripe
+  const router = createRouter(ENV.AGENT_API_KEY)
 
   router.get('/health', async (_req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({ status: 'ok', version: '0.5.1' }))
+    res.end(JSON.stringify({ status: 'ok', version: '0.7.0' }))
   })
 
   registerTradeRoutes(router)
