@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-05-01
+### Fixed — Flow A test run + API corrections
+
+- `agent/src/lib/mppx.ts` — corrected mppx v0.6.8 import path (`mppx/server` not `mppx`); switched `tempo()` → `tempo.charge()`; replaced invalid `rpcUrl` param with `getClient` to anchor chain ID to Moderato (42431)
+- `agent/src/routes/webhooks.ts` — fixed 400/500 status code discrimination: used regex to match Stripe's actual `WebhookSignatureVerificationError` messages instead of `includes('signature')` which falsely matched viem revert messages
+- `nixpacks.toml` + `railway.json` — switched Railway start command to `cd agent && npx tsx src/index.ts` to bypass nixpacks TypeScript compilation failures; `nixpacks.toml` with empty build phase added
+- `.env` — removed stray Stripe Connect setup URL from file; confirmed `STRIPE_WEBHOOK_SECRET` uses `stripe listen` test value
+
+### Validated end-to-end (Moderato testnet, local)
+- `POST /trades` → creates trade, derives virtual deposit address, marks order `matched` ✓
+- `POST /trades/:id/settle` → returns proper MPP `402 Payment Required` challenge (amount 0.1 USDC, recipient agent EOA, externalId = tradeId) ✓
+- `POST /webhooks/stripe` → signature verification passes; `transfer.paid` handler fires; trade advances to `released` (write-before-side-effect confirmed) ✓
+- On-chain USDC transfer attempted: reverted with `InsufficientBalance` (agent has 0.989 USDC, needs 1.0) — requires testnet top-up to complete full round-trip
+
 ## [0.5.0] — 2026-05-01
 ### Added — Flow A settlement agent (Phases 1–5)
 

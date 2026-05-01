@@ -20,10 +20,9 @@ export function registerWebhookRoutes(router: Router): void {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Webhook error'
       console.error('[webhook] Rejected:', message)
-      // Return 400 for signature failures so Stripe stops retrying invalid events.
-      // Return 500 for handler errors so Stripe retries — the event was valid.
-      const status = message.includes('signature') ? 400 : 500
-      json(res, status, { error: message })
+      // WebhookSignatureVerificationError always starts with "No signatures" or "Webhook signature"
+      const isSigError = /^(No signatures|Webhook signature|No timestamp found)/i.test(message)
+      json(res, isSigError ? 400 : 500, { error: message })
       return
     }
 

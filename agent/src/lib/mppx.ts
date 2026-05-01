@@ -14,6 +14,7 @@
 import { Mppx, tempo } from 'mppx/server'
 import { privateKeyToAccount } from 'viem/accounts'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { publicClient } from '../tempo/chain.js'
 import { ENV } from './env.js'
 
 // Not exported — complex generic type cannot be named in declaration files.
@@ -21,10 +22,12 @@ import { ENV } from './env.js'
 const mppx = Mppx.create({
   secretKey: ENV.MPP_SECRET_KEY,
   methods: [
-    tempo({
+    tempo.charge({
       account: privateKeyToAccount(ENV.AGENT_ACCESS_KEY as `0x${string}`),
       currency: ENV.TEMPO_PATHUSDC_ADDRESS as `0x${string}`,
       recipient: ENV.AGENT_ACCESS_KEY_ADDRESS as `0x${string}`,
+      getClient: () => publicClient,
+      testnet: ENV.NODE_ENV !== 'production',
     }),
   ],
 })

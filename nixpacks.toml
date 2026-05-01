@@ -1,0 +1,8 @@
+[phases.install]
+cmds = ["cd agent && npm install"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "cd agent && npx tsx src/index.ts"
