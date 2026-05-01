@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase'
+import { createServerClient } from '@/lib/supabase-server'
 import type { Order } from '@/lib/supabase'
 import { OrderBookClient } from './orderbook-client'
 
 export default async function OrderBookPage() {
-  const supabase = createClient()
+  const supabase = createServerClient()
 
   const { data: orders } = await supabase
     .from('orders')

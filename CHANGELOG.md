@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-05-01
+### Bug fixes — P0/P1 audit fixes
+
+- **env**: Fix `NEXT_PUBLI_TEMPO_PATHUSDC_ADDRESS` typo → `NEXT_PUBLIC_TEMPO_PATHUSDC_ADDRESS`; add `TEMPO_PATHUSDC_ADDRESS` for agent; add `TEMPO_RPC_URL` for agent; fix RPC URL to Moderato testnet
+- **balance display**: `Hooks.token.useGetBalance` query now gated on `!!PATHUSDC` so it never fires with undefined token
+- **account page orders/trades**: replaced direct browser Supabase queries (blocked by RLS) with `GET /api/orders/by-user` and `GET /api/trades/by-user` (service-role, bypasses RLS) — fixes empty order/trade history
+- **orderbook page**: server-component initial fetch now uses `createServerClient()` (service-role) instead of browser anon client
+- **orders API**: upsert user row before inserting order to prevent FK constraint violation on first order placement
+- **agent trades route**: upsert both buyer and seller rows before inserting trade
+- **deposit monitor**: watchers now run in parallel (`Promise.all`) instead of sequentially; expired deadlines are marked immediately without starting a watcher
+- **stripe refresh**: added `GET /api/stripe/account/refresh` route so abandoned Stripe onboarding can resume cleanly
+
 ## [1.0.0] — 2026-05-01
 ### Complete — All MVP phases shipped
 

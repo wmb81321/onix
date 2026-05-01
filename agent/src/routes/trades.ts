@@ -47,6 +47,12 @@ export function registerTradeRoutes(router: Router): void {
     const tradeId = randomUUID()
     const virtualAddress = deriveDepositAddress(masterId, tradeId)
 
+    // Ensure both party rows exist before the trade FK insert
+    await db.from('users').upsert(
+      [{ address: body.buyer_address }, { address: body.seller_address }],
+      { onConflict: 'address', ignoreDuplicates: true },
+    )
+
     const { data: trade, error: insertError } = await db
       .from('trades')
       .insert({

@@ -56,18 +56,28 @@ export async function startDepositMonitor(tokenAddress: `0x${string}`) {
 
   console.log(`[monitor] Watching ${trades.length} pending deposit(s)`)
 
-  for (const trade of trades) {
+  // Run all watchers in parallel — each resolves independently on deposit or timeout
+  await Promise.all(trades.map(async (trade) => {
+    const deadlineMs = new Date(trade.deposit_deadline).getTime()
+
+    // Already expired — mark immediately instead of starting a watcher
+    if (Date.now() >= deadlineMs) {
+      await updateTradeStatus(trade.id, 'deposit_timeout')
+      console.log(`[monitor] Trade ${trade.id} → deposit_timeout (already expired)`)
+      return
+    }
+
     const result = await watchDeposit(
       trade.virtual_deposit_address as `0x${string}`,
       trade.id,
       tokenAddress,
       BigInt(Math.round(trade.usdc_amount * 1e6)),
-      new Date(trade.deposit_deadline).getTime(),
+      deadlineMs,
     )
 
     if (result === 'timeout') {
       await updateTradeStatus(trade.id, 'deposit_timeout')
       console.log(`[monitor] Trade ${trade.id} → deposit_timeout`)
     }
-  }
+  }))
 }

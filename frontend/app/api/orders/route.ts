@@ -24,6 +24,12 @@ export async function POST(req: NextRequest) {
   const usd_amount = Math.round(usdc_amount * rate * 100) / 100
 
   const db = createServerClient()
+
+  // Ensure user row exists before inserting order (prevents FK violation on first order)
+  await db
+    .from('users')
+    .upsert({ address: user_address }, { onConflict: 'address', ignoreDuplicates: true })
+
   const { data, error } = await db
     .from('orders')
     .insert({ user_address, type, usdc_amount, usd_amount, rate })

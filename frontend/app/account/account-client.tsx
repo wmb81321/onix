@@ -6,7 +6,7 @@ import { Hooks } from 'wagmi/tempo'
 import { formatUnits } from 'viem'
 import Link from 'next/link'
 import { StripeConnectButton } from '@/components/stripe-connect-button'
-import { createClient, type Order, type Trade } from '@/lib/supabase'
+import type { Order, Trade } from '@/lib/supabase'
 
 const PATHUSDC = process.env.NEXT_PUBLIC_TEMPO_PATHUSDC_ADDRESS as `0x${string}` | undefined
 
@@ -20,7 +20,7 @@ export function AccountClient() {
   const { data: balanceRaw, refetch: refetchBalance } = Hooks.token.useGetBalance({
     account: address,
     token:   PATHUSDC,
-    query:   { enabled: !!address },
+    query:   { enabled: !!address && !!PATHUSDC },
   })
   const balance = balanceRaw !== undefined
     ? Number(formatUnits(balanceRaw as bigint, 6)).toFixed(2)
@@ -34,15 +34,17 @@ export function AccountClient() {
 
   useEffect(() => {
     if (!address) return
-    const db = createClient()
     setLoading(true)
 
     Promise.all([
-      db.from('orders').select('*').eq('user_address', address).order('created_at', { ascending: false }).limit(10),
-      db.from('trades').select('*').or(`buyer_address.eq.${address},seller_address.eq.${address}`).order('created_at', { ascending: false }).limit(10),
-    ]).then(([ordersRes, tradesRes]) => {
-      setOrders((ordersRes.data as Order[]) ?? [])
-      setTrades((tradesRes.data as Trade[]) ?? [])
+      fetch(`/api/orders/by-user?address=${address}`).then((r) => r.json() as Promise<Order[]>),
+      fetch(`/api/trades/by-user?address=${address}`).then((r) => r.json() as Promise<Trade[]>),
+    ]).then(([ordersData, tradesData]) => {
+      setOrders(Array.isArray(ordersData) ? ordersData : [])
+      setTrades(Array.isArray(tradesData) ? tradesData : [])
+    }).catch(() => {
+      setOrders([])
+      setTrades([])
     }).finally(() => setLoading(false))
   }, [address])
 
