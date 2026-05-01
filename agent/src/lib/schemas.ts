@@ -26,9 +26,10 @@ export const TradeRowSchema = z.object({
   usdc_amount:             numericField,
   usd_amount:              numericField,
   virtual_deposit_address: z.string(),
-  stripe_payout_id:        z.string().nullable(),
-  stripe_account_id:       z.string().nullable(),
-  status:                  TradeStatusSchema,
+  stripe_payout_id:          z.string().nullable(),
+  stripe_account_id:         z.string().nullable(),
+  stripe_payment_intent_id:  z.string().nullable(),
+  status:                    TradeStatusSchema,
   deposit_deadline:        z.string(),  // ISO 8601
   created_at:              z.string(),
   updated_at:              z.string(),

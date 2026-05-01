@@ -3,20 +3,19 @@
  *
  * State machine: created → deposited → fee_paid → fiat_sent → released → complete
  *
- * This module handles the post-deposit steps:
- *   - continueAfterFeePaid(): fee_paid → fiat_sent (Stripe transfer to seller)
- *   - releaseUsdcToBuyer():   fiat_sent → released (on-chain USDC to buyer)
- *   - registerFlowAHandlers(): wires Stripe webhook → releaseUsdcToBuyer
+ * Entry points:
+ *   - continueAfterFeePaid(): deposited|fee_paid → fiat_sent (Stripe transfer to seller)
+ *     Called by: payment_intent.succeeded webhook (Phase 4 PaymentElement buyer flow)
+ *                POST /trades/:id/settle after mppx fee payment (legacy settle path)
+ *   - releaseUsdcToBuyer(): fiat_sent → released (on-chain USDC to buyer)
+ *     Called by: transfer.paid webhook
  *
  * Crash-safety rule: Supabase state is written BEFORE each side-effect.
  * Every function is idempotent — safe to call twice at the same state.
- *
- * NOTE: SPT execution (buyer's Stripe Link payment credential) is a TODO.
- * Currently the Stripe transfer draws from platform balance. Full SPT flow
- * requires /auth-stripe-link + Link CLI integration (Phase 5).
  */
 
 import type Stripe from 'stripe'
+
 import { db, updateTradeStatus } from '../lib/supabase.js'
 import { TradeRowSchema } from '../lib/schemas.js'
 import { sendFiatToSeller } from '../stripe/payouts.js'
@@ -34,8 +33,11 @@ async function fetchTrade(tradeId: string) {
 }
 
 /**
- * Called from POST /trades/:id/settle after mppx confirms fee payment.
  * Drives: deposited → fee_paid → fiat_sent
+ *
+ * Accepts two entry states:
+ *   'deposited' — arriving from the payment_intent.succeeded webhook (Phase 4)
+ *   'fee_paid'  — arriving from the legacy mppx /settle path
  */
 export async function continueAfterFeePaid(tradeId: string): Promise<void> {
   const trade = await fetchTrade(tradeId)
@@ -43,12 +45,18 @@ export async function continueAfterFeePaid(tradeId: string): Promise<void> {
   // Already past this stage — idempotent exit
   if (
     trade.status === 'fiat_sent' ||
-    trade.status === 'released' ||
+    trade.status === 'released'  ||
     trade.status === 'complete'
   ) return
 
+  if (trade.status !== 'deposited' && trade.status !== 'fee_paid') {
+    throw new Error(
+      `Cannot continue settlement for trade ${tradeId}: unexpected status ${trade.status}`,
+    )
+  }
+
   // Step 1: persist fee_paid BEFORE Stripe side-effect
-  if (trade.status === 'deposited') {
+  if (trade.status !== 'fee_paid') {
     await updateTradeStatus(tradeId, 'fee_paid')
   }
 
@@ -65,9 +73,9 @@ export async function continueAfterFeePaid(tradeId: string): Promise<void> {
     )
   }
 
-  // Step 2: persist fiat_sent BEFORE Stripe transfer
-  // If we crash here, the trade is marked fiat_sent but stripe_payout_id is null.
-  // On retry, sendFiatToSeller uses tradeId as idempotency key — safe to call again.
+  // Step 2: persist fiat_sent BEFORE Stripe transfer.
+  // If we crash here, stripe_payout_id will be null; on retry sendFiatToSeller
+  // uses tradeId as idempotency key — safe to call again.
   await updateTradeStatus(tradeId, 'fiat_sent', {
     stripe_account_id: seller.stripe_account,
   })
@@ -86,13 +94,12 @@ export async function continueAfterFeePaid(tradeId: string): Promise<void> {
 }
 
 /**
- * Called by Stripe webhook handler when the transfer to the seller settles.
+ * Called by Stripe webhook when the transfer to the seller settles.
  * Drives: fiat_sent → released
  */
 async function releaseUsdcToBuyer(tradeId: string): Promise<void> {
   const trade = await fetchTrade(tradeId)
 
-  // Idempotency
   if (trade.status === 'released' || trade.status === 'complete') return
   if (trade.status !== 'fiat_sent') {
     throw new Error(
@@ -100,10 +107,7 @@ async function releaseUsdcToBuyer(tradeId: string): Promise<void> {
     )
   }
 
-  // Persist released BEFORE on-chain transfer.
-  // If transfer fails, trade stays released with no tx — retry is safe (transferUsdc is idempotent
-  // from Tempo's perspective; worst case is a second transfer attempt, which we can detect by
-  // checking buyer balance before sending).
+  // Persist released BEFORE on-chain transfer — crash-safe
   await updateTradeStatus(tradeId, 'released')
 
   const txHash = await transferUsdc(
@@ -115,14 +119,30 @@ async function releaseUsdcToBuyer(tradeId: string): Promise<void> {
 }
 
 /**
+ * Triggered by payment_intent.succeeded when buyer pays via Stripe PaymentElement.
+ */
+async function handlePaymentIntentSucceeded(event: Stripe.Event): Promise<void> {
+  const pi = event.data.object as Stripe.PaymentIntent
+  const tradeId = pi.metadata['trade_id']
+
+  if (!tradeId) {
+    console.log('[flowA] payment_intent.succeeded — no trade_id in metadata, skipping')
+    return
+  }
+
+  console.log(`[flowA] payment_intent.succeeded → settling trade ${tradeId}`)
+  await continueAfterFeePaid(tradeId)
+}
+
+/**
  * Register all Stripe event handlers for Flow A.
  * Call once at agent startup before accepting trades.
  */
 export function registerFlowAHandlers(): void {
-  // 'transfer.paid' fires when our transfer to the seller's Connect account is confirmed
+  // Fires when transfer to seller's Connect account is confirmed
   registerWebhookHandler('transfer.paid', async (event: Stripe.Event) => {
     const transfer = event.data.object as Stripe.Transfer
-    const tradeId = transfer.transfer_group
+    const tradeId  = transfer.transfer_group
 
     if (!tradeId) {
       console.log('[flowA] transfer.paid — no transfer_group, skipping')
@@ -132,4 +152,7 @@ export function registerFlowAHandlers(): void {
     console.log(`[flowA] transfer.paid → releasing USDC for trade ${tradeId}`)
     await releaseUsdcToBuyer(tradeId)
   })
+
+  // Fires when buyer completes payment via Stripe PaymentElement (Phase 4)
+  registerWebhookHandler('payment_intent.succeeded', handlePaymentIntentSucceeded)
 }

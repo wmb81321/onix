@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAccount } from 'wagmi'
 import type { Trade, TradeStatus } from '@/lib/supabase'
+import { BuyerPaymentForm } from '@/components/buyer-payment-form'
 
 const STEPS: TradeStatus[] = [
   'created', 'deposited', 'fee_paid', 'fiat_sent', 'released', 'complete',
@@ -23,10 +24,8 @@ const STEP_LABELS: Record<TradeStatus, string> = {
 const FAILED: TradeStatus[] = ['deposit_timeout', 'stripe_failed', 'refunded']
 
 export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
-  const [trade,     setTrade]     = useState<Trade>(initialTrade)
-  const [settling,  setSettling]  = useState(false)
-  const [settleErr, setSettleErr] = useState<string | null>(null)
-  const [copied,    setCopied]    = useState(false)
+  const [trade,  setTrade]  = useState<Trade>(initialTrade)
+  const [copied, setCopied] = useState(false)
   const { address } = useAccount()
 
   const isSeller = address?.toLowerCase() === trade.seller_address.toLowerCase()
@@ -48,21 +47,6 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
     const id = setInterval(poll, 5000)
     return () => clearInterval(id)
   }, [trade.status, isFailed, poll])
-
-  async function settle() {
-    setSettling(true)
-    setSettleErr(null)
-    try {
-      const res = await fetch(`/api/trades/${trade.id}/settle`, { method: 'POST' })
-      const data = await res.json() as { status?: string; error?: string }
-      if (!res.ok) { setSettleErr(data.error ?? 'Settlement failed'); return }
-      await poll()
-    } catch {
-      setSettleErr('Network error — please try again')
-    } finally {
-      setSettling(false)
-    }
-  }
 
   function copyAddress() {
     void navigator.clipboard.writeText(trade.virtual_deposit_address)
@@ -162,28 +146,20 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
         </div>
       )}
 
-      {/* Buyer: settle button */}
+      {/* Buyer: pay USD */}
       {isBuyer && trade.status === 'deposited' && (
-        <div className="bg-panel rounded-xl border border-white/[0.07] p-4 space-y-3">
-          <span className="font-mono text-[10px] text-dim uppercase tracking-widest">
-            USDC deposited · Ready to settle
-          </span>
-          <p className="font-mono text-xs text-dim leading-relaxed">
-            The seller has deposited USDC. Initiate settlement to pay the 0.1 USDC service
-            fee and trigger the fiat payout to the seller.
-          </p>
-          {settleErr && (
-            <p className="font-mono text-xs text-danger/80 bg-danger/5 border border-danger/15 rounded-lg px-3 py-2">
-              {settleErr}
+        <div className="bg-panel rounded-xl border border-accent/20 p-4 space-y-4">
+          <div>
+            <span className="font-mono text-[10px] text-accent uppercase tracking-widest">
+              Action required · Pay USD
+            </span>
+            <p className="font-mono text-xs text-dim leading-relaxed mt-1.5">
+              The seller has deposited{' '}
+              <span className="text-ink">{trade.usdc_amount.toFixed(2)} USDC</span>.
+              Pay USD to complete the trade and receive USDC.
             </p>
-          )}
-          <button
-            onClick={settle}
-            disabled={settling}
-            className="w-full py-2.5 rounded-lg bg-accent text-canvas font-mono text-sm font-semibold hover:bg-accent-2 transition-colors disabled:opacity-40"
-          >
-            {settling ? 'Initiating…' : 'Settle Trade'}
-          </button>
+          </div>
+          <BuyerPaymentForm tradeId={trade.id} usdAmount={Number(trade.usd_amount)} />
         </div>
       )}
 

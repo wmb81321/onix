@@ -63,6 +63,7 @@ export type Database = {
           virtual_deposit_address: string
           stripe_payout_id: string | null
           stripe_account_id: string | null
+          stripe_payment_intent_id: string | null
           status: Database['public']['Enums']['trade_status']
           deposit_deadline: string
           created_at: string
@@ -80,6 +81,7 @@ export type Database = {
           status?: Database['public']['Enums']['trade_status']
           stripe_payout_id?: string | null
           stripe_account_id?: string | null
+          stripe_payment_intent_id?: string | null
         }
         Relationships: [
           {
