@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { StripeConnectButton } from '@/components/stripe-connect-button'
 import type { Order, Trade } from '@/lib/supabase'
 
-import { PATHUSDC } from '@/components/balance-display'
+import { PATHUSDC, useTokenSymbol } from '@/components/balance-display'
 
 export function AccountClient() {
   const { address, isConnected } = useAccount()
@@ -16,6 +16,8 @@ export function AccountClient() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(false)
   const [copied,  setCopied]  = useState(false)
+
+  const symbol = useTokenSymbol()
 
   const { data: balanceRaw, refetch: refetchBalance } = Hooks.token.useGetBalance({
     account: address,
@@ -90,11 +92,11 @@ export function AccountClient() {
         </div>
 
         <div className="flex items-center justify-between px-4 py-3.5">
-          <span className="font-mono text-[10px] text-dim uppercase tracking-widest">USDC Balance</span>
+          <span className="font-mono text-[10px] text-dim uppercase tracking-widest">{symbol} Balance</span>
           <div className="flex items-center gap-3">
             <span className="font-mono text-sm text-ink">
               {balance !== null
-                ? <><span className="text-ink/70">{balance}</span> <span className="text-dim/50">USDC</span></>
+                ? <><span className="text-ink/70">{balance}</span> <span className="text-dim/50">{symbol}</span></>
                 : <span className="text-dim/40">···</span>
               }
             </span>
