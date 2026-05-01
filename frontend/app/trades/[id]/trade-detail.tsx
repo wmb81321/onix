@@ -31,14 +31,13 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
   const isSeller = address?.toLowerCase() === trade.seller_address.toLowerCase()
   const isBuyer  = address?.toLowerCase() === trade.buyer_address.toLowerCase()
   const isFailed = FAILED.includes(trade.status)
+  const isDone   = trade.status === 'complete' || trade.status === 'released'
 
-  // Poll for status updates every 5s
   const poll = useCallback(async () => {
     try {
       const res = await fetch(`/api/trades/${trade.id}`)
       if (!res.ok) return
-      const data = await res.json() as Trade
-      setTrade(data)
+      setTrade(await res.json() as Trade)
     } catch { /* ignore */ }
   }, [trade.id])
 
@@ -70,9 +69,9 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
 
       {/* Amounts */}
       <div className="grid grid-cols-3 gap-px bg-white/[0.06] rounded-xl overflow-hidden">
-        <InfoCell label="USDC" value={`${trade.usdc_amount.toFixed(2)}`} accent />
-        <InfoCell label="USD"  value={`$${trade.usd_amount.toFixed(2)}`} />
-        <InfoCell label="Rate" value={(trade.usd_amount / trade.usdc_amount).toFixed(4)} />
+        <InfoCell label="USDC" value={`${Number(trade.usdc_amount).toFixed(2)}`} accent />
+        <InfoCell label="USD"  value={`$${Number(trade.usd_amount).toFixed(2)}`} />
+        <InfoCell label="Rate" value={(Number(trade.usd_amount) / Number(trade.usdc_amount)).toFixed(4)} />
       </div>
 
       {/* Parties */}
@@ -89,10 +88,9 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
             {STEPS.map((step, i) => {
               const done    = i < activeStep
               const current = i === activeStep
-              const future  = i > activeStep
               return (
                 <div key={step} className="flex items-center gap-3">
-                  <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                  <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 text-[10px] ${
                     done    ? 'border-accent bg-accent/20 text-accent'
                     : current ? 'border-accent text-accent'
                     : 'border-white/10 text-dim/30'
@@ -118,7 +116,7 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
         </div>
       )}
 
-      {/* Seller: deposit instructions */}
+      {/* Seller: deposit instructions (created state) */}
       {isSeller && trade.status === 'created' && (
         <div className="bg-panel rounded-xl border border-accent/20 p-4 space-y-3">
           <span className="font-mono text-[10px] text-accent uppercase tracking-widest">
@@ -126,8 +124,8 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
           </span>
           <p className="font-mono text-xs text-dim leading-relaxed">
             Send exactly{' '}
-            <span className="text-ink">{trade.usdc_amount.toFixed(2)} USDC</span>{' '}
-            to your virtual deposit address. Funds auto-forward to the agent.
+            <span className="text-ink">{Number(trade.usdc_amount).toFixed(2)} USDC</span>{' '}
+            to your virtual deposit address. Funds auto-forward to the agent escrow.
           </p>
           <div className="flex items-center gap-2 px-3 py-2.5 bg-canvas rounded-lg border border-white/[0.07]">
             <span className="font-mono text-xs text-ink/70 flex-1 truncate">
@@ -146,6 +144,26 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
         </div>
       )}
 
+      {/* Seller: waiting for buyer payment */}
+      {isSeller && trade.status === 'deposited' && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-panel rounded-xl border border-white/[0.07]">
+          <span className="w-1.5 h-1.5 rounded-full bg-caution animate-pulse shrink-0" />
+          <span className="font-mono text-xs text-dim">
+            Waiting for buyer to pay ${Number(trade.usd_amount).toFixed(2)} USD…
+          </span>
+        </div>
+      )}
+
+      {/* Buyer: waiting for seller deposit */}
+      {isBuyer && trade.status === 'created' && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-panel rounded-xl border border-white/[0.07]">
+          <span className="w-1.5 h-1.5 rounded-full bg-caution animate-pulse shrink-0" />
+          <span className="font-mono text-xs text-dim">
+            Waiting for seller to deposit {Number(trade.usdc_amount).toFixed(2)} USDC…
+          </span>
+        </div>
+      )}
+
       {/* Buyer: pay USD */}
       {isBuyer && trade.status === 'deposited' && (
         <div className="bg-panel rounded-xl border border-accent/20 p-4 space-y-4">
@@ -154,34 +172,134 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
               Action required · Pay USD
             </span>
             <p className="font-mono text-xs text-dim leading-relaxed mt-1.5">
-              The seller has deposited{' '}
-              <span className="text-ink">{trade.usdc_amount.toFixed(2)} USDC</span>.
-              Pay USD to complete the trade and receive USDC.
+              Seller has deposited{' '}
+              <span className="text-ink">{Number(trade.usdc_amount).toFixed(2)} USDC</span>.
+              Pay to complete and receive your USDC.
             </p>
           </div>
           <BuyerPaymentForm tradeId={trade.id} usdAmount={Number(trade.usd_amount)} />
         </div>
       )}
 
-      {/* Waiting state for buyer before deposit */}
-      {isBuyer && trade.status === 'created' && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-panel rounded-xl border border-white/[0.07]">
-          <span className="w-1.5 h-1.5 rounded-full bg-caution animate-pulse shrink-0" />
-          <span className="font-mono text-xs text-dim">
-            Waiting for seller to deposit {trade.usdc_amount.toFixed(2)} USDC…
-          </span>
-        </div>
+      {/* Rating widget — shown after settled */}
+      {(isBuyer || isSeller) && isDone && (
+        <RatingWidget
+          tradeId={trade.id}
+          raterAddress={address!}
+          rateeAddress={isBuyer ? trade.seller_address : trade.buyer_address}
+          rateeRole={isBuyer ? 'seller' : 'buyer'}
+        />
       )}
 
     </div>
   )
 }
 
+// ── Rating widget ─────────────────────────────────────────────────────────────
+
+function RatingWidget({
+  tradeId, raterAddress, rateeRole,
+}: {
+  tradeId: string
+  raterAddress: string
+  rateeAddress: string
+  rateeRole: 'buyer' | 'seller'
+}) {
+  const [score,     setScore]     = useState(0)
+  const [hovered,   setHovered]   = useState(0)
+  const [comment,   setComment]   = useState('')
+  const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error,     setError]     = useState<string | null>(null)
+
+  async function submit() {
+    if (score === 0) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/trades/${tradeId}/rate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rater_address: raterAddress, score, comment: comment || undefined }),
+      })
+      const data = await res.json() as { ok?: boolean; error?: string }
+      if (!res.ok) { setError(data.error ?? 'Failed to submit rating'); return }
+      setSubmitted(true)
+    } catch {
+      setError('Network error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 bg-accent/5 rounded-xl border border-accent/20">
+        <span className="text-accent text-sm">✓</span>
+        <span className="font-mono text-xs text-accent">Rating submitted — thank you!</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-panel rounded-xl border border-white/[0.07] p-4 space-y-4">
+      <span className="font-mono text-[10px] text-dim uppercase tracking-widest">
+        Rate this {rateeRole}
+      </span>
+
+      {/* Stars */}
+      <div className="flex items-center gap-2">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            onMouseEnter={() => setHovered(n)}
+            onMouseLeave={() => setHovered(0)}
+            onClick={() => setScore(n)}
+            className={`text-2xl leading-none transition-colors ${
+              n <= (hovered || score) ? 'text-caution' : 'text-white/10'
+            }`}
+          >
+            ★
+          </button>
+        ))}
+        {score > 0 && (
+          <span className="font-mono text-xs text-dim ml-1">
+            {['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'][score]}
+          </span>
+        )}
+      </div>
+
+      {/* Optional comment */}
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Leave a comment (optional)"
+        maxLength={300}
+        rows={2}
+        className="w-full bg-canvas border border-white/[0.07] rounded-lg px-3 py-2 font-mono text-xs text-ink placeholder:text-dim/30 outline-none focus:border-accent/30 transition-colors resize-none"
+      />
+
+      {error && (
+        <p className="font-mono text-[10px] text-danger/70">{error}</p>
+      )}
+
+      <button
+        onClick={submit}
+        disabled={score === 0 || submitting}
+        className="px-4 py-2 rounded-lg bg-accent text-canvas font-mono text-xs font-semibold hover:bg-accent/80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+      >
+        {submitting ? 'Submitting…' : 'Submit Rating'}
+      </button>
+    </div>
+  )
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
 function StatusBadge({ status }: { status: TradeStatus }) {
   const color = status === 'complete'   ? 'text-accent border-accent/30 bg-accent/5'
     : FAILED.includes(status)           ? 'text-danger border-danger/30 bg-danger/5'
     : 'text-caution border-caution/30 bg-caution/5'
-
   return (
     <span className={`px-2.5 py-1 rounded-full border font-mono text-[10px] uppercase tracking-widest ${color}`}>
       {status.replace(/_/g, ' ')}

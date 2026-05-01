@@ -116,6 +116,10 @@ async function releaseUsdcToBuyer(tradeId: string): Promise<void> {
   )
 
   console.log(`[flowA] Trade ${tradeId} → released (tx ${txHash})`)
+
+  // Mark complete immediately after USDC release — ratings are independent
+  await updateTradeStatus(tradeId, 'complete')
+  console.log(`[flowA] Trade ${tradeId} → complete`)
 }
 
 /**

@@ -17,6 +17,8 @@ export type Database = {
         }
         Update: {
           stripe_account?: string | null
+          rating_avg?:     number
+          trade_count?:    number
         }
         Relationships: []
       }

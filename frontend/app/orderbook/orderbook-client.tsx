@@ -49,14 +49,19 @@ export function OrderBookClient({ initialOrders }: { initialOrders: Order[] }) {
     setMatching(order.id)
     setMatchError(null)
 
+    // For SELL orders: matcher is the buyer (pays USD, receives USDC)
+    // For BUY orders:  matcher is the seller (deposits USDC, receives USD)
+    const buyerAddress  = order.type === 'sell' ? address          : order.user_address
+    const sellerAddress = order.type === 'sell' ? order.user_address : address
+
     try {
       const res = await fetch('/api/trades', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           order_id:       order.id,
-          buyer_address:  address,
-          seller_address: order.user_address,
+          buyer_address:  buyerAddress,
+          seller_address: sellerAddress,
           usdc_amount:    order.usdc_amount,
           usd_amount:     order.usd_amount,
         }),
@@ -171,15 +176,19 @@ export function OrderBookClient({ initialOrders }: { initialOrders: Order[] }) {
                     <td className="px-3 py-2.5 text-right">
                       {isOwn ? (
                         <span className="font-mono text-[10px] text-dim/40">yours</span>
-                      ) : isSell ? (
+                      ) : (
                         <button
                           onClick={() => matchOrder(o)}
                           disabled={isMatching || !address}
-                          className="px-3 py-1 rounded-md bg-accent/10 text-accent font-mono text-[10px] uppercase tracking-widest hover:bg-accent/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          className={`px-3 py-1 rounded-md font-mono text-[10px] uppercase tracking-widest transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                            isSell
+                              ? 'bg-accent/10 text-accent hover:bg-accent/20'
+                              : 'bg-caution/10 text-caution hover:bg-caution/20'
+                          }`}
                         >
-                          {isMatching ? '…' : 'Match'}
+                          {isMatching ? '…' : isSell ? 'Buy' : 'Sell'}
                         </button>
-                      ) : null}
+                      )}
                     </td>
                   </tr>
                 )
