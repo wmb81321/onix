@@ -1,0 +1,23 @@
+{
+  "_readme": "Project MCP configuration for Convexo P2P. Extends globally-available claude.ai plugin MCPs. See CLAUDE.md for the full MCP + CLI reference table.",
+
+  "_globally_available_mcps": {
+    "plugin:stripe":     "Stripe API ops — accounts, payouts, webhooks, customers. Prefix: mcp__plugin_stripe_stripe__*",
+    "plugin:supabase":   "Supabase — execute_sql, apply_migration, list_tables, get_logs. Prefix: mcp__plugin_supabase_supabase__*",
+    "plugin:playwright": "Browser automation — for Stripe Link widget / frontend E2E tests. Prefix: mcp__plugin_playwright_playwright__*",
+    "plugin:context7":   "Live library docs on demand — viem, wagmi, mppx, Stripe SDK, zod, Next.js. Prefix: mcp__plugin_context7_context7__*",
+    "link":              "Stripe Link CLI — SPTs, MPP payments, payment methods. Prefix: mcp__link__*  NOTE: run /auth-stripe-link before first use.",
+    "tempo":             "Tempo protocol docs — TIP-20, Virtual Addresses, MPP, Tempo Wallet. Prefix: mcp__tempo__*",
+    "github":            "GitHub — PRs, issues, commits. Prefix: mcp__github__*"
+  },
+
+  "mcpServers": {
+    "tempo": {
+      "url": "https://docs.tempo.xyz/api/mcp"
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+  }
+}

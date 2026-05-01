@@ -58,4 +58,3 @@ stripe listen --forward-to localhost:3001/webhooks/stripe
 ## Architecture
 
 Full system architecture, message flows, and trust model: [`docs/agenticp2p.md`](./docs/agenticp2p.md).
-# onix
