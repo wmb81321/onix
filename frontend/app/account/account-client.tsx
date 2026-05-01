@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useAccount } from 'wagmi'
+import { Hooks } from 'wagmi/tempo'
+import { formatUnits } from 'viem'
 import Link from 'next/link'
-import { BalanceDisplay } from '@/components/balance-display'
 import { StripeConnectButton } from '@/components/stripe-connect-button'
 import { createClient, type Order, type Trade } from '@/lib/supabase'
+
+const PATHUSDC = process.env.NEXT_PUBLIC_TEMPO_PATHUSDC_ADDRESS as `0x${string}` | undefined
 
 export function AccountClient() {
   const { address, isConnected } = useAccount()
@@ -13,6 +16,21 @@ export function AccountClient() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(false)
   const [copied,  setCopied]  = useState(false)
+
+  const { data: balanceRaw, refetch: refetchBalance } = Hooks.token.useGetBalance({
+    account: address,
+    token:   PATHUSDC,
+    query:   { enabled: !!address },
+  })
+  const balance = balanceRaw !== undefined
+    ? Number(formatUnits(balanceRaw as bigint, 6)).toFixed(2)
+    : null
+
+  const { mutate: fund, isPending: funding } = Hooks.faucet.useFundSync({
+    mutation: {
+      onSuccess: () => { void refetchBalance() },
+    },
+  })
 
   useEffect(() => {
     if (!address) return
@@ -71,12 +89,32 @@ export function AccountClient() {
 
         <div className="flex items-center justify-between px-4 py-3.5">
           <span className="font-mono text-[10px] text-dim uppercase tracking-widest">USDC Balance</span>
-          <BalanceDisplay className="font-mono text-sm text-ink" />
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-sm text-ink">
+              {balance !== null
+                ? <><span className="text-ink/70">{balance}</span> <span className="text-dim/50">USDC</span></>
+                : <span className="text-dim/40">···</span>
+              }
+            </span>
+            <button
+              onClick={() => address && fund({ account: address })}
+              disabled={funding || !address}
+              className="font-mono text-[10px] text-accent/60 hover:text-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Get test USDC from Tempo faucet"
+            >
+              {funding ? 'funding…' : '+ testnet'}
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center justify-between px-4 py-3.5">
           <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Stripe payout</span>
           <StripeConnectButton />
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-3.5">
+          <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Stripe Link</span>
+          <span className="font-mono text-[10px] text-dim/40 italic">coming soon — needed to buy</span>
         </div>
       </div>
 
@@ -84,7 +122,7 @@ export function AccountClient() {
       <div className="bg-panel rounded-xl border border-white/[0.07] p-4 space-y-3">
         <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Deposit · Withdraw</span>
         <p className="font-mono text-xs text-dim/70 leading-relaxed">
-          USDC lives on Tempo. Bridge in from any chain or fund directly via Tempo Wallet.
+          USDC lives on Tempo. Bridge in from any chain or fund directly via Tempo Wallet. Use "+ testnet" above for instant testnet funds.
         </p>
         <a
           href="https://wallet.tempo.xyz"

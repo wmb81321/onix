@@ -1,33 +1,24 @@
 'use client'
 
-import { useAccount, useReadContract } from 'wagmi'
 import { formatUnits } from 'viem'
+import { useAccount } from 'wagmi'
+import { Hooks } from 'wagmi/tempo'
 
-const USDC_ADDRESS = process.env.NEXT_PUBLIC_TEMPO_PATHUSDC_ADDRESS as `0x${string}` | undefined
-
-const ABI = [{
-  type: 'function' as const,
-  name: 'balanceOf',
-  inputs:  [{ name: 'account', type: 'address' as const }],
-  outputs: [{ name: '',        type: 'uint256' as const }],
-  stateMutability: 'view' as const,
-}]
+const PATHUSDC = process.env.NEXT_PUBLIC_TEMPO_PATHUSDC_ADDRESS as `0x${string}` | undefined
 
 export function BalanceDisplay({ className }: { className?: string }) {
   const { address } = useAccount()
 
-  const { data: raw, isLoading } = useReadContract({
-    address: USDC_ADDRESS,
-    abi: ABI,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: { enabled: !!address && !!USDC_ADDRESS, refetchInterval: 10_000 },
+  const { data, isLoading } = Hooks.token.useGetBalance({
+    account:  address,
+    token:    PATHUSDC,
+    query:    { enabled: !!address, refetchInterval: 10_000 },
   })
 
   if (!address) return null
 
-  const balance = raw !== undefined
-    ? Number(formatUnits(raw as bigint, 6)).toFixed(2)
+  const balance = data !== undefined
+    ? Number(formatUnits(data as bigint, 6)).toFixed(2)
     : null
 
   return (
