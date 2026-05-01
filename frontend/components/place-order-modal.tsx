@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
-import { BalanceDisplay } from './balance-display'
+import { Hooks } from 'wagmi/tempo'
+import { formatUnits } from 'viem'
+import Link from 'next/link'
+import { BalanceDisplay, PATHUSDC } from './balance-display'
 import { StripeConnectButton } from './stripe-connect-button'
 
 type OrderType = 'buy' | 'sell'
@@ -23,6 +26,16 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
   const [stripeReady,    setStripeReady]    = useState(false)
   const [placed,         setPlaced]         = useState(false)
 
+  // Read balance for sell-order validation — React Query deduplicates with BalanceDisplay
+  const { data: balanceRaw } = Hooks.token.useGetBalance({
+    account: address,
+    token:   PATHUSDC,
+    query:   { enabled: !!address },
+  })
+  const balanceUsdc = balanceRaw !== undefined
+    ? Number(formatUnits(balanceRaw as bigint, 6))
+    : null
+
   // Reset on open
   useEffect(() => {
     if (open) {
@@ -42,6 +55,11 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
     if (!address) { setError('Connect your wallet first'); return }
     if (usdc < 5)  { setError('Minimum order is 5 USDC');  return }
     if (rateNum <= 0) { setError('Rate must be positive'); return }
+
+    if (type === 'sell' && balanceUsdc !== null && usdc > balanceUsdc) {
+      setError(`Insufficient balance — you have ${balanceUsdc.toFixed(2)} USDC. Fund your wallet from the Account page.`)
+      return
+    }
 
     if (type === 'sell' && !stripeReady) {
       setError('Connect your Stripe account to receive USD payouts before placing a sell order')
@@ -170,7 +188,18 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
           {/* Balance */}
           <div className="flex items-center justify-between text-[11px]">
             <span className="font-mono text-dim/50">Your balance</span>
-            <BalanceDisplay className="font-mono" />
+            <div className="flex items-center gap-2">
+              <BalanceDisplay className="font-mono" />
+              {type === 'sell' && balanceUsdc !== null && balanceUsdc < 5 && (
+                <Link
+                  href="/account"
+                  onClick={onClose}
+                  className="font-mono text-[10px] text-caution/70 hover:text-caution transition-colors"
+                >
+                  fund →
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Stripe connect — required for sell orders */}

@@ -4,7 +4,11 @@ import { formatUnits } from 'viem'
 import { useAccount } from 'wagmi'
 import { Hooks } from 'wagmi/tempo'
 
-const PATHUSDC = process.env.NEXT_PUBLIC_TEMPO_PATHUSDC_ADDRESS as `0x${string}` | undefined
+// Fallback to the known Moderato testnet pathUSD address so the hook always
+// queries the correct TIP-20 token even when the env var is absent at build time.
+export const PATHUSDC = (
+  process.env.NEXT_PUBLIC_TEMPO_PATHUSDC_ADDRESS ?? '0x20c0000000000000000000000000000000000000'
+) as `0x${string}`
 
 export function BalanceDisplay({ className }: { className?: string }) {
   const { address } = useAccount()

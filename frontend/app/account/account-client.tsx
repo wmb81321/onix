@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { StripeConnectButton } from '@/components/stripe-connect-button'
 import type { Order, Trade } from '@/lib/supabase'
 
-const PATHUSDC = process.env.NEXT_PUBLIC_TEMPO_PATHUSDC_ADDRESS as `0x${string}` | undefined
+import { PATHUSDC } from '@/components/balance-display'
 
 export function AccountClient() {
   const { address, isConnected } = useAccount()
@@ -20,7 +20,7 @@ export function AccountClient() {
   const { data: balanceRaw, refetch: refetchBalance } = Hooks.token.useGetBalance({
     account: address,
     token:   PATHUSDC,
-    query:   { enabled: !!address && !!PATHUSDC },
+    query:   { enabled: !!address },
   })
   const balance = balanceRaw !== undefined
     ? Number(formatUnits(balanceRaw as bigint, 6)).toFixed(2)
