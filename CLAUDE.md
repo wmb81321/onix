@@ -16,11 +16,11 @@ Convexo P2P is an agentic crypto-fiat settlement app where an AI Agent coordinat
 | Railway agent | ✓ Live | `https://convexo-p2p-agent-production.up.railway.app` — health check ok |
 | Stripe webhook | ✓ Registered | Live mode (`we_1TSCLoIGWVzmFM6GKEWLa7QD`), all keys in `.env` |
 | mppx/server | ✓ Verified | `import { Mppx, NodeListener, tempo } from 'mppx/server'` — works |
-| Flow A (`flowA.ts`) | ✗ Not built | Next milestone — see `CLAUDE.local.md` for build order |
-| Flow B (`flowB.ts`) | ✗ Not built | After Flow A |
-| Frontend order book | ✗ Stub | `app/` exists but routes not wired to agent |
+| Flow A agent (`flowA.ts`) | ✓ Built | All 5 phases complete — see [0.5.0] in CHANGELOG |
+| Flow B agent (`flowB.ts`) | ✗ Not built | Needs `/auth-stripe-link` first, then SPT integration |
+| Frontend order book | ✗ Stub | `app/` exists, routes not wired to agent yet |
 
-**Start here for the next session:** open `CLAUDE.local.md` → "Current State" section for the exact file build sequence.
+**Start here for the next session:** `CLAUDE.local.md` → "What's next" section.
 
 ---
 

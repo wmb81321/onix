@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-05-01
+### Added — Flow A settlement agent (Phases 1–5)
+
+**Phase 1 — Core lib**
+- `agent/src/lib/env.ts` — zod validates every env var at startup; exits with clear errors; exports typed `ENV` object; added `MPP_SECRET_KEY` field
+- `agent/src/lib/schemas.ts` — canonical zod schemas for `TradeRow`, `OrderRow`, `UserRow` and their status enums; `coerce.number()` handles Supabase numeric-as-string
+- `agent/src/tempo/chain.ts` — shared `tempoChain`, `publicClient`, `walletClient`, `agentAccount` extracted from inline usage in `monitor.ts`
+- `agent/src/lib/supabase.ts` — `TradeStatus` now sourced from `schemas.ts` (removed duplicate union type)
+- `agent/src/tempo/monitor.ts` — refactored to import chain/client from `chain.ts`
+- `agent/src/index.ts` — manual env check loop replaced with single `ENV` import
+
+**Phase 2 — External integrations**
+- `agent/src/tempo/wallet.ts` — `transferUsdc(to, amountUsdc)` ERC-20 transfer via agent EOA; `getAgentUsdcBalance()` for pre-release checks
+- `agent/src/stripe/client.ts` — Stripe singleton pinned to `apiVersion: '2026-04-22.preview'`
+- `agent/src/stripe/payouts.ts` — `sendFiatToSeller(accountId, usdAmount, tradeId)` platform→Connect transfer with `idempotencyKey: tradeId`; `getPayoutMethods` for account inspection
+- `agent/src/stripe/webhook.ts` — `verifyAndDispatch(rawBody, sig)` — `constructEvent` first, then routes to registered handlers; handler registry pattern (flows register on startup)
+
+**Phase 3 — Settlement**
+- `agent/src/lib/mppx.ts` — mppx singleton wired to agent EOA + pathUSD + Moderato; `chargeServiceFee(req, res, tradeId)` with `externalId: tradeId` for idempotency; complex generic type kept unexported to avoid declaration emit issues
+- `agent/src/flows/flowA.ts` — full crypto→fiat orchestrator: `continueAfterFeePaid` (deposited→fee_paid→fiat_sent), `releaseUsdcToBuyer` (fiat_sent→released), `registerFlowAHandlers` (wires `transfer.paid` webhook); all state writes precede side-effects; full idempotency on every step
+- `.env` — added `MPP_SECRET_KEY`
+
+**Phase 4+5 — HTTP layer + wiring**
+- `agent/src/lib/router.ts` — minimal path router with `:param` matching, per-route error boundary, `readRawBody` / `readJsonBody` / `json` helpers
+- `agent/src/routes/trades.ts` — `POST /trades` (create trade, derive VA off-chain, start non-blocking deposit watcher); `POST /trades/:id/settle` (mppx 402 gate → `continueAfterFeePaid`)
+- `agent/src/routes/webhooks.ts` — `POST /webhooks/stripe` (raw body read, `verifyAndDispatch`; 400 on bad sig, 500 on handler error so Stripe retries valid events)
+- `agent/src/index.ts` — fully wired: registers Flow A handlers, mounts router, boots HTTP server, runs `startDepositMonitor` to resume pending deposits after restart
+
+### Known gaps (next session)
+- SPT execution (buyer's Stripe Link credential) in `flowA.ts` is a TODO — requires `/auth-stripe-link` + `mcp__link__*` integration
+- Flow B (`flowB.ts`) not yet built
+- Frontend order book not yet wired to agent
+
 ## [0.4.0] — 2026-05-01
 ### Completed — Infrastructure fully operational
 - **Tempo Virtual Address master registered on-chain** — `AGENT_MASTER_ID=0x3ead6d3d`, salt mined for EOA `0x6772787e16a7ea4c5307cc739cc5116b4b26ffc0`, tx confirmed at block 15460573 (Moderato testnet, TIP-1022 registry `0xfdc0000000000000000000000000000000000000`)

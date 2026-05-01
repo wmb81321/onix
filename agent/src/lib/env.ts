@@ -25,9 +25,11 @@ const schema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(10),
 
   // Agent runtime
-  PORT:             z.coerce.number().default(3001),
-  FACILITATOR_URL:  z.string().url(),
+  PORT:               z.coerce.number().default(3001),
+  FACILITATOR_URL:    z.string().url(),
   CHARGE_AMOUNT_USDC: z.coerce.number().default(0.1),
+  // Used by mppx to HMAC-bind challenge IDs (stateless verification)
+  MPP_SECRET_KEY:     z.string().min(16),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 })
 
