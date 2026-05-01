@@ -21,6 +21,7 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
   const [error,          setError]          = useState<string | null>(null)
   const [submitting,     setSubmitting]     = useState(false)
   const [stripeReady,    setStripeReady]    = useState(false)
+  const [placed,         setPlaced]         = useState(false)
 
   // Reset on open
   useEffect(() => {
@@ -28,6 +29,7 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
       setUsdcAmount('')
       setRate('1.00')
       setError(null)
+      setPlaced(false)
     }
   }, [open])
 
@@ -63,7 +65,8 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
       const data = await res.json() as { id?: string; error?: string }
       if (!res.ok) { setError(data.error ?? 'Failed to place order'); return }
       onCreated(data.id!)
-      onClose()
+      setPlaced(true)
+      setTimeout(onClose, 2000)
     } catch {
       setError('Network error — please try again')
     } finally {
@@ -190,14 +193,21 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
             Min. 5 USDC · 24h expiry · non-refundable listing fee
           </p>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={submitting || !address}
-            className="w-full py-2.5 rounded-lg bg-accent text-canvas text-sm font-semibold font-mono hover:bg-accent-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {submitting ? 'Placing…' : !address ? 'Connect wallet' : 'Place Order'}
-          </button>
+          {/* Submit / success */}
+          {placed ? (
+            <div className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-accent/10 border border-accent/30">
+              <span className="text-accent text-sm">✓</span>
+              <span className="font-mono text-sm text-accent font-semibold">Order placed</span>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={submitting || !address}
+              className="w-full py-2.5 rounded-lg bg-accent text-canvas text-sm font-semibold font-mono hover:bg-accent-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Placing…' : !address ? 'Connect wallet' : 'Place Order'}
+            </button>
+          )}
 
         </form>
       </div>

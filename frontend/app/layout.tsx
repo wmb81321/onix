@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
+import Link from 'next/link'
 import { Providers } from './providers'
 import { ConnectButton } from '@/components/connect-button'
 import './globals.css'
@@ -28,7 +29,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   Convexo P2P
                 </span>
               </div>
-              <ConnectButton />
+              <div className="flex items-center gap-4">
+                <Link href="/orderbook" className="font-mono text-[11px] text-dim hover:text-ink transition-colors hidden sm:block">
+                  Order Book
+                </Link>
+                <Link href="/account" className="font-mono text-[11px] text-dim hover:text-ink transition-colors hidden sm:block">
+                  Account
+                </Link>
+                <ConnectButton />
+              </div>
             </header>
 
             <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-10">
