@@ -1,0 +1,68 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "faucet.tempo.xyz"
+        }
+      ],
+      "destination": "https://docs.tempo.xyz/quickstart/faucet",
+      "permanent": false
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "faucet.tempo.xyz"
+        }
+      ],
+      "destination": "https://docs.tempo.xyz/quickstart/faucet",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "bridge.tempo.xyz"
+        }
+      ],
+      "destination": "https://docs.tempo.xyz/guide/getting-funds",
+      "permanent": false
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "bridge.tempo.xyz"
+        }
+      ],
+      "destination": "https://docs.tempo.xyz/guide/getting-funds",
+      "permanent": false
+    },
+    {
+      "source": "/guide/bridge-usdc-stargate",
+      "destination": "/guide/bridge-layerzero",
+      "permanent": true
+    },
+    {
+      "source": "/guide/bridge-usdc-relay",
+      "destination": "/guide/bridge-relay",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/ingest/static/:path(.*)",
+      "destination": "https://us-assets.i.posthog.com/static/:path"
+    },
+    {
+      "source": "/ingest/:path(.*)",
+      "destination": "https://us.i.posthog.com/:path"
+    }
+  ]
+}

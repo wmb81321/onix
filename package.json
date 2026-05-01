@@ -1,0 +1,12 @@
+{
+  "name": "convexo-p2p",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter './frontend' --filter './agent' dev",
+    "build": "pnpm --filter './frontend' build && pnpm --filter './agent' build",
+    "test": "pnpm --filter './agent' test"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

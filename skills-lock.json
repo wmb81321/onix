@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "skills": {
+    "create-payment-credential": {
+      "source": "stripe/link-cli",
+      "sourceType": "github",
+      "skillPath": "skills/create-payment-credential/SKILL.md",
+      "computedHash": "9b97c65844cf2d8c6fee42e2c9013415d141616121daade30d8ddc1f03529a7b"
+    },
+    "privy": {
+      "source": "docs.privy.io",
+      "sourceType": "well-known",
+      "computedHash": "1377b722156f66ab7737f05391ee831042b51e4c926137a57c9896548e63d556"
+    },
+    "stripe-best-practices": {
+      "source": "docs.stripe.com",
+      "sourceType": "well-known",
+      "computedHash": "f0aac866fab408c8bf28f3acacbbf61539cea81b3aeb030fceb64be1ccddaf9e"
+    },
+    "tempo-docs": {
+      "source": "tempoxyz/docs",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "428a12d45ba1357564c1f024b9c4fd39e4195625f9fc10c7dbe38fe36c21e2d3"
+    },
+    "x402": {
+      "source": "docs.x402.org",
+      "sourceType": "well-known",
+      "computedHash": "c0221f83d6b89f2922151216e0e8e1a2aeea2a9e896b4eb27954ec3f1ae90cfd"
+    }
+  }
+}
