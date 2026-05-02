@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
 import { z } from 'zod'
+import type { Database } from '@/lib/database.types'
+
+type OrderStatus = Database['public']['Enums']['order_status']
+type OrderType   = Database['public']['Enums']['order_type']
 
 export async function GET(req: NextRequest) {
   const type   = req.nextUrl.searchParams.get('type')
-  const status = req.nextUrl.searchParams.get('status') ?? 'open'
+  const status = (req.nextUrl.searchParams.get('status') ?? 'open') as OrderStatus
   const id     = req.nextUrl.searchParams.get('id')
 
   const db = createServerClient()
@@ -16,7 +20,7 @@ export async function GET(req: NextRequest) {
   }
 
   let query = db.from('orders').select('*').eq('status', status).order('created_at', { ascending: false })
-  if (type && type !== 'all') query = query.eq('type', type)
+  if (type && type !== 'all') query = query.eq('type', type as OrderType)
   const { data, error } = await query.limit(100)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data ?? [])
