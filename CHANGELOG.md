@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-05-01
+### Phase 6 — Stripe Link SPT buyer payment
+
+- **`LinkPayButton`** — "Pay with Stripe Link" button on the trade detail page; creates a Link spend request server-side, shows approval URL, polls in background, confirms payment on approval; falls back to existing Stripe Elements form
+- **`POST /trades/:id/link-pay`** (agent) — creates Link spend request (`card` credential type, `--test` in test mode); on approval retrieves raw card, creates Stripe PaymentMethod + confirms PaymentIntent server-side; `payment_intent.succeeded` webhook triggers existing Flow A
+- **`POST /api/trades/[id]/link-pay`** (Next.js proxy) — forwards to agent with `AGENT_API_KEY` auth
+- **`initLinkCli()`** — writes `LINK_CLI_AUTH` env JSON to `~/.config/link-cli-nodejs/config.json` at agent startup so the `link-cli` binary authenticates on Railway
+- **Dockerfile** — adds `npm install -g @stripe/link-cli`
+- **DB migration `004`** — `trades.link_spend_request_id`, `users.link_payment_method_id`
+- **`LINK_CLI_AUTH`** and **`LINK_DEFAULT_PM_ID`** added to agent env schema (optional — app degrades gracefully without them)
+
 ## [1.0.2] — 2026-05-01
 ### Bug fixes — P1 audit fixes
 

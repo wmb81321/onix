@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useAccount } from 'wagmi'
 import type { Trade, TradeStatus } from '@/lib/supabase'
 import { BuyerPaymentForm } from '@/components/buyer-payment-form'
+import { LinkPayButton } from '@/components/link-pay-button'
 
 const STEPS: TradeStatus[] = [
   'created', 'deposited', 'fee_paid', 'fiat_sent', 'released', 'complete',
@@ -176,6 +177,12 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
               <span className="text-ink">{Number(trade.usdc_amount).toFixed(2)} USDC</span>.
               Pay to complete and receive your USDC.
             </p>
+          </div>
+          <LinkPayButton tradeId={trade.id} usdAmount={Number(trade.usd_amount)} />
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px bg-white/[0.05]" />
+            <span className="font-mono text-[10px] text-dim/30 uppercase tracking-widest">or pay with card</span>
+            <div className="flex-1 h-px bg-white/[0.05]" />
           </div>
           <BuyerPaymentForm tradeId={trade.id} usdAmount={Number(trade.usd_amount)} />
         </div>

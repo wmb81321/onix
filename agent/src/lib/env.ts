@@ -33,6 +33,10 @@ const schema = z.object({
   // Bearer token required on all agent routes except /health and /webhooks/stripe
   AGENT_API_KEY:      z.string().min(32),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+
+  // Stripe Link (Phase 6 — optional, enables SPT buyer payment flow)
+  LINK_CLI_AUTH:      z.string().optional(), // JSON config for @stripe/link-cli, written to disk at startup
+  LINK_DEFAULT_PM_ID: z.string().optional(), // Fallback Link payment method ID when user has none stored
 })
 
 const result = schema.safeParse(process.env)

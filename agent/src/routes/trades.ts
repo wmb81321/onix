@@ -7,6 +7,8 @@ import { chargeServiceFee } from '../lib/mppx.js'
 import { continueAfterFeePaid } from '../flows/flowA.js'
 import { deriveDepositAddress } from '../tempo/virtualAddresses.js'
 import { watchDeposit } from '../tempo/monitor.js'
+import { stripe } from '../stripe/client.js'
+import { createSpendRequest, requestApproval, pollForApproval, getCard } from '../lib/link.js'
 import { ENV } from '../lib/env.js'
 
 const DEPOSIT_TIMEOUT_MS = 30 * 60 * 1000   // 30 minutes
@@ -97,6 +99,108 @@ export function registerTradeRoutes(router: Router): void {
 
     console.log(`[trades] Trade ${trade.id} created — deposit address ${virtualAddress}`)
     json(res, 201, { trade_id: trade.id, virtual_deposit_address: virtualAddress, deposit_deadline: deadline })
+  })
+
+  // POST /trades/:id/link-pay — create Stripe Link spend request and pay server-side on approval
+  router.post('/trades/:id/link-pay', async (req, res, params) => {
+    const tradeId = params['id']
+    if (!tradeId) { json(res, 400, { error: 'Missing trade id' }); return }
+
+    const { data: trade, error } = await db
+      .from('trades')
+      .select('id, status, buyer_address, usdc_amount, usd_amount')
+      .eq('id', tradeId)
+      .single()
+
+    if (error ?? !trade) { json(res, 404, { error: 'Trade not found' }); return }
+    if (trade.status !== 'deposited') {
+      json(res, 409, { error: `Trade is ${trade.status}, expected deposited` })
+      return
+    }
+
+    // Resolve buyer's Link payment method ID (per-user or env default)
+    const { data: buyer } = await db
+      .from('users')
+      .select('link_payment_method_id')
+      .eq('address', trade.buyer_address)
+      .single()
+
+    const pmId = (buyer as { link_payment_method_id?: string | null } | null)
+      ?.link_payment_method_id ?? ENV.LINK_DEFAULT_PM_ID
+
+    if (!pmId) {
+      json(res, 409, { error: 'No Stripe Link payment method configured for this buyer' })
+      return
+    }
+
+    const amountCents = Math.round(Number(trade.usd_amount) * 100) + 10
+    const context = [
+      `Convexo P2P trade ${(tradeId as string).slice(0, 8)}:`,
+      `pay $${(amountCents / 100).toFixed(2)} USD to receive`,
+      `${Number(trade.usdc_amount).toFixed(2)} USDC on the Tempo blockchain.`,
+      'This is a peer-to-peer exchange — USDC is held in escrow and',
+      'will be released to your wallet automatically once your USD payment confirms.',
+    ].join(' ')
+
+    const testMode = ENV.STRIPE_SECRET_KEY.startsWith('sk_test_')
+    const sr = await createSpendRequest(pmId, amountCents, context, testMode)
+
+    // Persist so agent can resume after restart
+    await db.from('trades').update({ link_spend_request_id: sr.id }).eq('id', tradeId)
+
+    json(res, 200, { spendRequestId: sr.id, approvalUrl: sr.approvalUrl })
+
+    // Background: request push notification → poll for approval → pay server-side
+    void (async () => {
+      try {
+        await requestApproval(sr.id)
+
+        const outcome = await pollForApproval(sr.id)
+        if (outcome !== 'approved') {
+          if (outcome === 'denied') await updateTradeStatus(tradeId, 'stripe_failed')
+          console.log(`[link-pay] Spend request ${outcome} for trade ${tradeId}`)
+          return
+        }
+
+        const card = await getCard(sr.id)
+
+        const pm = await stripe.paymentMethods.create({
+          type: 'card',
+          card: {
+            number:    card.number,
+            exp_month: card.exp_month,
+            exp_year:  card.exp_year,
+            cvc:       card.cvc,
+          },
+          billing_details: card.billing_address ? {
+            name:    card.billing_address.name    ?? undefined,
+            address: {
+              line1:       card.billing_address.line1       ?? undefined,
+              city:        card.billing_address.city        ?? undefined,
+              state:       card.billing_address.state       ?? undefined,
+              postal_code: card.billing_address.postal_code ?? undefined,
+              country:     card.billing_address.country     ?? undefined,
+            },
+          } : undefined,
+        })
+
+        // Create + confirm PI server-side — triggers payment_intent.succeeded webhook → Flow A
+        const pi = await stripe.paymentIntents.create({
+          amount:         amountCents,
+          currency:       'usd',
+          payment_method: pm.id,
+          confirm:        true,
+          metadata:       { trade_id: tradeId },
+          return_url:     `${ENV.FACILITATOR_URL}/stripe/payment-return/${tradeId}`,
+        })
+
+        await db.from('trades').update({ stripe_payment_intent_id: pi.id }).eq('id', tradeId)
+        console.log(`[link-pay] Trade ${tradeId} → PI ${pi.id} (${pi.status}) via Stripe Link`)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.error(`[link-pay] Background error for trade ${tradeId}:`, msg)
+      }
+    })()
   })
 
   // POST /trades/:id/settle — charge 0.1 USDC service fee then drive settlement

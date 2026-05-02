@@ -7,6 +7,7 @@ export type Database = {
         Row: {
           address: string
           stripe_account: string | null
+          link_payment_method_id: string | null
           rating_avg: number
           trade_count: number
           created_at: string
@@ -16,9 +17,10 @@ export type Database = {
           stripe_account?: string | null
         }
         Update: {
-          stripe_account?: string | null
-          rating_avg?:     number
-          trade_count?:    number
+          stripe_account?:         string | null
+          link_payment_method_id?: string | null
+          rating_avg?:             number
+          trade_count?:            number
         }
         Relationships: []
       }
@@ -66,6 +68,7 @@ export type Database = {
           stripe_payout_id: string | null
           stripe_account_id: string | null
           stripe_payment_intent_id: string | null
+          link_spend_request_id: string | null
           status: Database['public']['Enums']['trade_status']
           deposit_deadline: string
           created_at: string
@@ -84,6 +87,7 @@ export type Database = {
           stripe_payout_id?: string | null
           stripe_account_id?: string | null
           stripe_payment_intent_id?: string | null
+          link_spend_request_id?: string | null
         }
         Relationships: [
           {

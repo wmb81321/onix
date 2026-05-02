@@ -34,9 +34,11 @@ export function createRouter(apiKey?: string) {
       const url    = (req.url ?? '/').split('?')[0] ?? '/'
       const method = req.method ?? 'GET'
 
-      // Bearer auth — exempt /health and /webhooks/stripe
+      // Bearer auth — exempt /health, /webhooks/stripe, and trade settle (mppx payment = auth)
       if (apiKey) {
-        const exempt = url === '/health' || url === '/webhooks/stripe'
+        const exempt = url === '/health'
+          || url === '/webhooks/stripe'
+          || /^\/trades\/[^/]+\/settle$/.test(url)
         if (!exempt) {
           const authHeader = req.headers['authorization']
           if (!authHeader || authHeader !== `Bearer ${apiKey}`) {

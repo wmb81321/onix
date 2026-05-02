@@ -12,8 +12,11 @@ import { registerTradeRoutes } from './routes/trades.js'
 import { registerWebhookRoutes } from './routes/webhooks.js'
 import { registerFlowAHandlers } from './flows/flowA.js'
 import { startDepositMonitor } from './tempo/monitor.js'
+import { initLinkCli } from './lib/link.js'
 
 async function main() {
+  initLinkCli()
+
   // Verify Supabase connection
   const { error } = await db.from('trades').select('id').limit(1)
   if (error) throw new Error(`Supabase connection failed: ${error.message}`)
@@ -40,7 +43,7 @@ async function main() {
 
   server.listen(ENV.PORT, () => {
     console.log(`[agent] Listening on port ${ENV.PORT} ✓`)
-    console.log('[agent] Routes: POST /trades, POST /trades/:id/settle, POST /webhooks/stripe')
+    console.log('[agent] Routes: POST /trades, POST /trades/:id/link-pay, POST /trades/:id/settle, POST /webhooks/stripe')
   })
 
   // Resume monitoring any trades that were pending before this boot
