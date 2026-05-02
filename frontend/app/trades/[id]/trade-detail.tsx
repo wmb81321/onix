@@ -178,7 +178,11 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
               Pay to complete and receive your USDC.
             </p>
           </div>
-          <LinkPayButton tradeId={trade.id} usdAmount={Number(trade.usd_amount)} />
+          <LinkPayButton
+            tradeId={trade.id}
+            usdAmount={Number(trade.usd_amount)}
+            onPaid={poll}
+          />
           <div className="flex items-center gap-2">
             <div className="flex-1 h-px bg-white/[0.05]" />
             <span className="font-mono text-[10px] text-dim/30 uppercase tracking-widest">or pay with card</span>
@@ -193,7 +197,6 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
         <RatingWidget
           tradeId={trade.id}
           raterAddress={address!}
-          rateeAddress={isBuyer ? trade.seller_address : trade.buyer_address}
           rateeRole={isBuyer ? 'seller' : 'buyer'}
         />
       )}
@@ -209,7 +212,6 @@ function RatingWidget({
 }: {
   tradeId: string
   raterAddress: string
-  rateeAddress: string
   rateeRole: 'buyer' | 'seller'
 }) {
   const [score,     setScore]     = useState(0)

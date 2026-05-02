@@ -6,16 +6,21 @@ import { Hooks } from 'wagmi/tempo'
 import { formatUnits } from 'viem'
 import Link from 'next/link'
 import { StripeConnectButton } from '@/components/stripe-connect-button'
+import { SaveCardForm } from '@/components/save-card-form'
+import { LinkPmSetup } from '@/components/link-pm-setup'
 import type { Order, Trade } from '@/lib/supabase'
 
 import { PATHUSDC, useTokenSymbol } from '@/components/balance-display'
 
 export function AccountClient() {
   const { address, isConnected } = useAccount()
-  const [orders, setOrders] = useState<Order[]>([])
-  const [trades, setTrades] = useState<Trade[]>([])
-  const [loading, setLoading] = useState(false)
-  const [copied,  setCopied]  = useState(false)
+  const [orders,       setOrders]       = useState<Order[]>([])
+  const [trades,       setTrades]       = useState<Trade[]>([])
+  const [loading,      setLoading]      = useState(false)
+  const [copied,       setCopied]       = useState(false)
+  const [savedCard,    setSavedCard]    = useState<{ brand: string; last4: string } | null>(null)
+  const [showCardForm, setShowCardForm] = useState(false)
+  const [linkPmId,     setLinkPmId]     = useState<string | null>(null)
 
   const symbol = useTokenSymbol()
 
@@ -41,9 +46,18 @@ export function AccountClient() {
     Promise.all([
       fetch(`/api/orders/by-user?address=${address}`).then((r) => r.json() as Promise<Order[]>),
       fetch(`/api/trades/by-user?address=${address}`).then((r) => r.json() as Promise<Trade[]>),
-    ]).then(([ordersData, tradesData]) => {
+      fetch(`/api/users/me?address=${address}`).then((r) => r.json() as Promise<{
+        stripe_buyer_card_brand?: string | null
+        stripe_buyer_card_last4?: string | null
+        link_payment_method_id?:  string | null
+      }>),
+    ]).then(([ordersData, tradesData, userData]) => {
       setOrders(Array.isArray(ordersData) ? ordersData : [])
       setTrades(Array.isArray(tradesData) ? tradesData : [])
+      if (userData.stripe_buyer_card_brand && userData.stripe_buyer_card_last4) {
+        setSavedCard({ brand: userData.stripe_buyer_card_brand, last4: userData.stripe_buyer_card_last4 })
+      }
+      setLinkPmId(userData.link_payment_method_id ?? null)
     }).catch(() => {
       setOrders([])
       setTrades([])
@@ -117,8 +131,52 @@ export function AccountClient() {
         </div>
 
         <div className="flex items-center justify-between px-4 py-3.5">
-          <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Stripe Link</span>
-          <span className="font-mono text-[10px] text-dim/40 italic">coming soon — needed to buy</span>
+          <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Auto-pay card</span>
+          {savedCard ? (
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs text-ink/70">
+                {savedCard.brand} ···· {savedCard.last4}
+              </span>
+              <button
+                onClick={() => setShowCardForm((v) => !v)}
+                className="font-mono text-[10px] text-accent/60 hover:text-accent transition-colors"
+              >
+                change
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowCardForm((v) => !v)}
+              className="font-mono text-[10px] text-accent/60 hover:text-accent transition-colors"
+            >
+              + add card
+            </button>
+          )}
+        </div>
+        {showCardForm && address && (
+          <div className="px-4 py-4 border-t border-white/[0.05]">
+            <SaveCardForm
+              userAddress={address}
+              onSaved={(brand, last4) => {
+                setSavedCard({ brand, last4 })
+                setShowCardForm(false)
+              }}
+            />
+          </div>
+        )}
+
+        <div className="flex items-start justify-between px-4 py-3.5 gap-4 border-t border-white/[0.05]">
+          <div className="shrink-0">
+            <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Stripe Link</span>
+            <p className="font-mono text-[9px] text-dim/40 mt-0.5">agent payments · P2P</p>
+          </div>
+          {address && (
+            <LinkPmSetup
+              userAddress={address}
+              currentPmId={linkPmId}
+              onSaved={(pmId) => setLinkPmId(pmId || null)}
+            />
+          )}
         </div>
       </div>
 

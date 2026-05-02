@@ -8,6 +8,10 @@ export type Database = {
           address: string
           stripe_account: string | null
           link_payment_method_id: string | null
+          stripe_customer_id: string | null
+          stripe_buyer_pm_id: string | null
+          stripe_buyer_card_brand: string | null
+          stripe_buyer_card_last4: string | null
           rating_avg: number
           trade_count: number
           created_at: string
@@ -17,10 +21,14 @@ export type Database = {
           stripe_account?: string | null
         }
         Update: {
-          stripe_account?:         string | null
-          link_payment_method_id?: string | null
-          rating_avg?:             number
-          trade_count?:            number
+          stripe_account?:           string | null
+          link_payment_method_id?:   string | null
+          stripe_customer_id?:       string | null
+          stripe_buyer_pm_id?:       string | null
+          stripe_buyer_card_brand?:  string | null
+          stripe_buyer_card_last4?:  string | null
+          rating_avg?:               number
+          trade_count?:              number
         }
         Relationships: []
       }

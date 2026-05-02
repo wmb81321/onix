@@ -1,142 +1,133 @@
-# Convexo P2P — Build Roadmap
+# Convexo P2P — Roadmap
 
-## Goal
-Ship a working P2P crypto↔fiat settlement app on Tempo testnet within 5 weeks,
-then move to mainnet. The Agent holds USDC via virtual addresses, executes fiat
-via Stripe Link, and charges 0.1 USDC per settlement via MPP.
+## Current state: v1.4.0 (2026-05-02)
 
----
-
-## Week 1 — Foundation
-**Goal:** Project boots, user can connect Tempo Wallet, order book exists in DB.
-
-### Supabase schema
-- `orders` table: id, user_address, type (buy/sell), usdc_amount, usd_amount, rate, status, created_at
-- `trades` table: id, order_id, buyer_address, seller_address, usdc_amount, usd_amount, virtual_deposit_address, stripe_payout_id, status, created_at, updated_at
-- `ratings` table: id, trade_id, rater_address, ratee_address, score (1-5), comment
-- RLS: users can only read/write their own rows
-
-### Next.js app scaffold
-- `app/layout.tsx` — WagmiProvider with `tempoWallet()` connector
-- `app/page.tsx` — landing, connect wallet button
-- `app/orderbook/page.tsx` — live order book (Supabase Realtime subscription, read-only)
-- Tailwind CSS setup
-
-### Agent scaffold
-- `agent/src/index.ts` — boots, connects to Supabase
-- `agent/src/virtualAddresses.ts` — VirtualMaster setup script + VirtualAddress.from()
-
-**Done when:** User can connect Tempo Wallet on the app, see an empty order book, and the virtual master setup script runs successfully on testnet.
+All MVP phases shipped on Moderato testnet. Full agentic settlement infrastructure
+in place for both buyer and seller sides. MCP server published — any Claude agent
+can now add `convexo-p2p-mcp` to their `mcp.json` and trade autonomously.
+Next focus: agent API spec doc, seller agent script, end-to-end agentic test.
 
 ---
 
-## Week 2 — Orders + Deposit Flow
-**Goal:** User can post an order, match it, and send USDC to a virtual deposit address.
+## Completed phases
 
-### Order book
-- `app/orderbook/page.tsx` — post buy/sell order form
-- `app/api/orders/route.ts` — create/cancel order
-- Real-time order list updates via Supabase Realtime
-
-### Trade creation
-- `app/api/trades/route.ts` — match order, create trade
-- `agent/src/stateMachine.ts` — state transitions + Supabase writes
-- Virtual deposit address derived and returned to Seller
-
-### Deposit monitoring
-- `agent/src/tempo/monitor.ts` — watch TIP-20 Transfer events for virtual addresses
-- When deposit detected: trade status → `deposited`, notify both parties
-
-**Done when:** Seller can post a sell order, Buyer matches it, Seller sees a deposit address, sends testnet USDC, and trade transitions to `deposited`.
-
----
-
-## Week 3 — Stripe Integration
-**Goal:** Agent can send and receive fiat via Stripe Link in test mode.
-
-### Stripe Connect setup
-- Create Stripe Connect platform account
-- `app/api/stripe/onboard/route.ts` — create Stripe Connect account + Connection Session
-- `app/onboard/stripe/page.tsx` — `stripe.initLinkConnection()` widget for Seller
-
-### Stripe Global Payouts (Flow A)
-- `agent/src/stripe/payouts.ts` — `POST /v2/core/accounts` + send payout
-- Test mode payout to Stripe test Link account
-
-### Stripe webhook endpoint
-- `app/api/webhooks/stripe/route.ts` — `stripe.webhooks.constructEvent()`
-- Dispatch `payout.paid` → agent releases USDC
-
-### Stripe Link SPT (Flow B)
-- Integrate `create-payment-credential` Stripe Link CLI skill
-- `agent/src/stripe/spt.ts` — execute SPT HTTP 402 payment
-
-**Done when:** In Stripe test mode, Agent can send a test payout to a Link account and receive the signed webhook.
+| Phase | Version | What shipped |
+|---|---|---|
+| 0 — Security | v0.7.0 | AGENT_API_KEY bearer auth, atomic trade creation (race condition fix), trustless settle endpoint (mppx = auth) |
+| 1 — Wallet auth | v0.6.0 | Tempo Wallet connect, user upsert on connect |
+| 2 — API proxy | v1.0.0 | All frontend→agent proxy routes |
+| 3 — Stripe Connect | v1.0.0 | Seller Express onboarding, account status, refresh |
+| 3a — Order book UI | v1.0.0 | Filter tabs, inline toolbar, unified table |
+| 3b — Account page | v1.0.0 | Balance, faucet, Stripe status, order/trade history |
+| 4 — Buyer payment | v1.0.0 | Stripe PaymentElement, PaymentIntent, return page |
+| 5 — BUY orders + ratings | v1.0.0 | BUY order matching (roles swapped), 1-5 star ratings, trade completion |
+| Audit P0/P1 | v1.0.1–1.0.2 | Migration 003, charges_enabled check, instanceof webhook fix |
+| 6 — Stripe Link infra | v1.1.0 | Link CLI subprocess, spend request route, link-pay agent route, Dockerfile |
+| 7 — Per-buyer auto-pay | v1.2.0 | SetupIntent card save, off-session auto-pay endpoint, buyer-agent.ts (card path) |
+| 7b — Per-buyer Link (P2P) | v1.3.0 | Per-buyer PM ID registration, fixed link-pay (no platform fallback), LinkPayButton restored, buyer-agent.ts (Link path) |
+| 8 — MCP server + agent page | v1.4.0 | `convexo-p2p-mcp` npm package (8 tools, stdio MCP), `/agents` install page, public `GET /api/orders`, `settle_trade` crypto-native tool |
 
 ---
 
-## Week 4 — MPP Service Fee + End-to-End
-**Goal:** Full Flow A and Flow B working end-to-end on testnet.
+## Phase 9 — Agent API spec (next)
 
-### MPP session middleware
-- `npm install mppx`
-- `agent/src/index.ts` — wrap settlement endpoint with `mppx.session({ amount: '0.1', unitType: 'settlement' })`
-- Register agent as discoverable service on Tempo testnet
+**Goal:** Single authoritative reference document so any agent (Claude SDK, external script, third-party) can integrate with Convexo P2P without reading source code.
 
-### Flow A end-to-end
-- Seller deposits → Buyer matches → fee paid → Stripe payout → webhook → USDC released
-- All 7 state transitions verified in Supabase
+Deliverables:
+- `docs/agent-api.md` — full endpoint reference (method, path, auth, request, response, state machine events triggered)
+- Update `README.md` with a link to the doc
 
-### Flow B end-to-end
-- Seller deposits → Buyer authorizes SPT → Agent executes → webhook → USDC released
-
-### Ratings
-- `app/trade/[id]/page.tsx` — rate counterparty after trade complete
-- `supabase/migrations/` — ratings table + aggregation view
-
-**Done when:** Full test run of both flows passes `/test-flow-a` and `/test-flow-b` commands with no manual steps.
+**Done when:** A developer (or Claude agent) can complete a trade end-to-end using only the docs, without reading any source code.
 
 ---
 
-## Week 5 — Hardening + Mainnet
-**Goal:** Production-ready, deployed, first real trades possible.
+## Phase 10 — Seller agent script
 
-### Error handling + recovery
-- Deposit timeout (30 min) → `deposit_timeout` state + Seller notification
-- Stripe failure → `stripe_failed` + refund path (return USDC to Seller's address)
-- MPP session failure → retry with exponential backoff
+**Goal:** Symmetric to `buyer-agent.ts`. Seller runs a script that monitors the order book for matched orders and automatically deposits USDC to the virtual address.
 
-### Security review
-- All Supabase RLS policies audited
-- No service-role key in any browser code
-- Stripe webhook signature verified on every call
-- Access key spending caps set on Agent Tempo wallet
-- `/semgrep` review pass
+```bash
+SELLER_ADDRESS=0x... FRONTEND_URL=https://... tsx scripts/seller-agent.ts
+```
 
-### Production deploy
-- Next.js → Vercel
-- Agent → Fly.io (persistent process for event monitoring)
-- Supabase → production project
-- Stripe → live mode
-- Tempo → mainnet (bridge USDC via LayerZero from Base)
+Steps the seller agent handles:
+1. Poll Supabase for trades where `seller_address = SELLER_ADDRESS` and `status = created`
+2. Check if the seller has enough USDC balance
+3. Call `tempo wallet transfer` (or viem `sendTransaction`) to deposit exact USDC amount to `virtual_deposit_address`
+4. Poll until trade advances to `deposited` → log
 
-### Mainnet checklist
-- [ ] `AGENT_MASTER_ID` set from mainnet run of `/setup-virtual-master`
-- [ ] Agent access key with spending cap configured
-- [ ] Stripe live mode keys set
-- [ ] Stripe webhook endpoint registered (not stripe listen)
-- [ ] Tempo mainnet RPC configured
-- [ ] At least 2 USDC in Agent wallet as float
-- [ ] Supabase RLS verified with production anon key
-
-**Done when:** Two real humans complete a trade on mainnet.
+**Done when:** Seller agent runs unattended and deposits USDC for a newly matched trade without any human interaction.
 
 ---
 
-## Phase 2 backlog (post-launch)
-- ERC-8004 identity + on-chain reputation (when mainnet registry exists)
-- Solidity escrow contract (upgrade from agent-wallet escrow for full trustlessness)
-- TEE attestation (Stripe webhook verified inside TEE)
-- Multi-currency support (EUR, GBP via Stripe)
-- Agent-to-agent discovery (other AI agents can use Convexo as an MCP service)
-- Mobile app (React Native + Wagmi mobile)
+## Phase 11 — End-to-end agentic test
+
+**Goal:** Both seller agent and buyer agent complete a full trade with zero human touchpoints.
+
+Test script (`scripts/e2e-agentic.ts`):
+1. Post a SELL order via API
+2. Match it from buyer address via API
+3. Start seller-agent.ts in background → deposits USDC automatically
+4. Start buyer-agent.ts in background → initiates Link spend request
+5. Auto-approve spend request (via `AUTO_APPROVE=1` or Playwright)
+6. Assert trade reaches `complete` in Supabase
+7. Assert buyer USDC balance increased
+
+**Done when:** `tsx scripts/e2e-agentic.ts` passes with both agents running headlessly.
+
+---
+
+## Phase 12 — Hardening + security pass
+
+Before mainnet, a focused review:
+
+- [ ] All Supabase RLS policies re-audited with fresh eyes
+- [ ] No service-role key anywhere in frontend bundles (`grep -r SERVICE_ROLE frontend/`)
+- [ ] Stripe webhook signature verified on every path (no bypass, no mock in prod)
+- [ ] Agent access key spending caps set and tested
+- [ ] Deposit timeout (30 min) tested explicitly — verify `deposit_timeout` state reached
+- [ ] Refund path tested — agent wallet sends USDC back to seller on `refunded`
+- [ ] Rate limiting on `POST /trades` (prevent order spam)
+- [ ] `stripe_payment_intent_id` idempotency — two concurrent auto-pay calls for same trade return existing PI
+
+---
+
+## Phase 13 — Mainnet deploy
+
+**Prerequisites:** Phase 11 green (agentic test passes), Phase 12 clean (security pass).
+
+Checklist:
+- [ ] Mine new `AGENT_MASTER_ID` on Tempo mainnet (`/setup-virtual-master`)
+- [ ] Fund agent wallet on mainnet (real USDC via bridge or direct)
+- [ ] Set agent access key with spending cap on mainnet
+- [ ] Switch `TEMPO_RPC_URL` to mainnet, `TEMPO_CHAIN_ID` to `4217`
+- [ ] Switch frontend chain from `tempoModerato` to `tempo` in `wagmi.ts`
+- [ ] Switch Stripe to live mode keys (`sk_live_...`)
+- [ ] Register Stripe live webhook endpoint (not `stripe listen`)
+- [ ] Update `NEXT_PUBLIC_TEMPO_PATHUSDC_ADDRESS` for mainnet USDC address
+- [ ] Smoke test: complete one real trade before announcing
+- [ ] Set Railway to production env, Vercel to production env
+
+---
+
+## Phase 14 — Post-launch backlog
+
+**Multi-currency fiat:**
+- EUR/GBP support via Stripe (additional Connect payout currencies)
+- Dynamic rate from exchange API instead of user-set rate
+
+**Better agentic UX:**
+- Claude SDK tool definitions for buyer and seller agents (proper tool schemas)
+- Spend request auto-approval via Playwright / Stripe Link SDK when available
+- Agent-to-agent discovery — register Convexo agent as an MCP service so other Claude agents can find and use it
+
+**Scale + reliability:**
+- Deposit watcher recovery — restart watchers on agent reboot for in-flight trades
+- Multi-instance agent (trade-level sharding) for horizontal scale
+- Alerting — Railway/PagerDuty on webhook failures, trade stuck in state > 1h
+
+**Reputation:**
+- ERC-8004 or equivalent on-chain reputation registry
+- Show counterparty rating on order book (not just post-trade)
+
+**Mobile:**
+- React Native frontend with Wagmi mobile

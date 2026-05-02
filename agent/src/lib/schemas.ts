@@ -66,5 +66,12 @@ export const UserRowSchema = z.object({
   rating_avg:     numericField,
   trade_count:    z.number().int(),
   created_at:     z.string(),
+  // Migration 004
+  link_payment_method_id: z.string().nullable(),
+  // Migration 005
+  stripe_customer_id:       z.string().nullable(),
+  stripe_buyer_pm_id:       z.string().nullable(),
+  stripe_buyer_card_brand:  z.string().nullable(),
+  stripe_buyer_card_last4:  z.string().nullable(),
 })
 export type UserRow = z.infer<typeof UserRowSchema>

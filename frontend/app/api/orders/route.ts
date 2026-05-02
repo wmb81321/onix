@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
 import { z } from 'zod'
 
+export async function GET(req: NextRequest) {
+  const type   = req.nextUrl.searchParams.get('type')
+  const status = req.nextUrl.searchParams.get('status') ?? 'open'
+  const id     = req.nextUrl.searchParams.get('id')
+
+  const db = createServerClient()
+
+  if (id) {
+    const { data, error } = await db.from('orders').select('*').eq('id', id).single()
+    if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return NextResponse.json(data)
+  }
+
+  let query = db.from('orders').select('*').eq('status', status).order('created_at', { ascending: false })
+  if (type && type !== 'all') query = query.eq('type', type)
+  const { data, error } = await query.limit(100)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data ?? [])
+}
+
 const MIN_USDC = 5
 
 const schema = z.object({

@@ -13,7 +13,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: tradeId } = await params
-  const body = Body.parse(await req.json())
+  const parsed = Body.safeParse(await req.json())
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.errors[0]?.message ?? 'Invalid request' }, { status: 400 })
+  }
+  const body = parsed.data
   const supabase = createServerClient()
 
   const { data: trade } = await supabase

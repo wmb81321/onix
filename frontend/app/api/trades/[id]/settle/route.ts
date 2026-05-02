@@ -6,17 +6,14 @@ export async function POST(
 ) {
   const { id } = await params
   const agentUrl = process.env.FACILITATOR_URL
-  const apiKey   = process.env.AGENT_API_KEY
-  if (!agentUrl || !apiKey) {
+  if (!agentUrl) {
     return NextResponse.json({ error: 'Agent not configured' }, { status: 503 })
   }
 
+  // settle is a public mppx endpoint — the 0.1 USDC payment IS the auth, no Bearer header
   const res = await fetch(`${agentUrl}/trades/${id}/settle`, {
     method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
   })
 
   const data = await res.json() as unknown

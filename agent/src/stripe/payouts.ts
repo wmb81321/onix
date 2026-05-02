@@ -31,14 +31,3 @@ export async function sendFiatToSeller(
   return transfer.id
 }
 
-/**
- * List payout methods on a connected account.
- * Requires Stripe-Context header — passed via stripeAccount option.
- */
-export async function getPayoutMethods(stripeAccountId: string) {
-  const methods = await stripe.paymentMethods.list(
-    { type: 'us_bank_account' },
-    { stripeAccount: stripeAccountId },
-  )
-  return methods.data
-}

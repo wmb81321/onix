@@ -125,11 +125,13 @@ export function registerTradeRoutes(router: Router): void {
       .eq('address', trade.buyer_address)
       .single()
 
-    const pmId = (buyer as { link_payment_method_id?: string | null } | null)
-      ?.link_payment_method_id ?? ENV.LINK_DEFAULT_PM_ID
+    const pmId = buyer?.link_payment_method_id
 
     if (!pmId) {
-      json(res, 409, { error: 'No Stripe Link payment method configured for this buyer' })
+      json(res, 402, {
+        error: 'Buyer has no Stripe Link payment method registered.',
+        action: 'Visit /account → "Stripe Link" to add your Link PM ID (csmrpd_...).',
+      })
       return
     }
 

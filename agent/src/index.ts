@@ -32,7 +32,7 @@ async function main() {
 
   router.get('/health', async (_req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({ status: 'ok', version: '0.7.0' }))
+    res.end(JSON.stringify({ status: 'ok', version: '1.4.0' }))
   })
 
   registerTradeRoutes(router)

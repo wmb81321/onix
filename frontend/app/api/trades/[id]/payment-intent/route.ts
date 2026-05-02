@@ -69,6 +69,7 @@ export async function POST(
     currency: 'usd',
     metadata: { trade_id: tradeId },
     automatic_payment_methods: { enabled: true },
+    transfer_data: { destination: seller.stripe_account },
   })
 
   // Persist PI ID before returning — crash-safe, idempotent on retry

@@ -36,6 +36,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Link href="/account" className="font-mono text-[11px] text-dim hover:text-ink transition-colors hidden sm:block">
                   Account
                 </Link>
+                <Link href="/agents" className="font-mono text-[11px] text-dim hover:text-ink transition-colors hidden sm:block">
+                  For Agents
+                </Link>
                 <ConnectButton />
               </div>
             </header>

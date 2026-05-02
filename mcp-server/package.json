@@ -1,0 +1,22 @@
+{
+  "name": "convexo-p2p-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Convexo P2P — agentic crypto-fiat settlement",
+  "type": "module",
+  "bin": { "convexo-p2p-mcp": "./dist/index.js" },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "npx tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0"
+  }
+}

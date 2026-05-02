@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-05-01
+### Phase 8 — MCP server, /agents page, public orders GET, settle_trade tool
+
+- **`mcp-server/`** — new `convexo-p2p-mcp` npm package: a Node.js MCP server (stdio transport) wrapping the Convexo REST API so any Claude agent can add it to their `mcp.json` and become a buyer or seller autonomously; exposes 8 tools: `list_orders`, `get_trade`, `get_my_trades`, `create_order`, `match_order`, `initiate_payment`, `settle_trade`, `get_trade_status_description`.
+- **`settle_trade` tool** — crypto-native settlement path: agent pays 0.1 USDC service fee via MPP (`POST /api/trades/:id/settle`); the mppx payment IS the authorization — no Stripe, no API key required. Alternative to `initiate_payment` for on-chain-only flows.
+- **`GET /api/orders`** — public read endpoint added to the existing orders route; supports `?type=`, `?status=`, and `?id=` query params; returns up to 100 orders via service-role client (bypasses RLS for public read).
+- **`/agents` page** — developer-facing page (`frontend/app/agents/page.tsx` + `AgentsContent` client component) explaining how to add the MCP server, listing all 8 tools with role badges, showing an example agent conversation, and linking to the direct REST API.
+- **Nav** — "For Agents" link added to the main header.
+
+## [1.3.0] — 2026-05-01
+### Phase 7b — Per-buyer Stripe Link (P2P payment infrastructure)
+
+- **Per-buyer Link PM registration** — `LinkPmSetup` component on account page; buyer runs `npx @stripe/link-cli payment-methods list`, pastes their `csmrpd_...` ID; stored in `users.link_payment_method_id`
+- **`POST /api/users/link-pm`** — saves/removes buyer's Link PM ID; validates `csmrpd_` prefix
+- **Agent link-pay fixed** — removed `LINK_DEFAULT_PM_ID` platform fallback; now requires buyer's own PM; returns 402 with clear action message if not registered
+- **`LinkPayButton` restored** — now targets buyer's own PM, not platform's; polls trade status every 4s to auto-advance UI on approval; shows clean approval URL for agent consumption
+- **`buyer-agent.ts` updated** — calls link-pay (not auto-pay); logs spend request ID + approval URL; `AUTO_APPROVE=1` opens URL in local browser for semi-automated testing
+
+## [1.2.0] — 2026-05-01
+### Phase 7 — Agentic buyer payments (per-buyer Stripe, off-session auto-pay)
+
+- **Removed `LinkPayButton`** — was charging platform owner's card; replaced by per-buyer card system
+- **`SaveCardForm` component** — Stripe Elements SetupIntent UI on account page; saves card for future off-session charges; shows saved card brand + last4 once stored
+- **`POST /api/stripe/setup-intent`** — creates (or retrieves) a Stripe Customer per buyer, returns SetupIntent `clientSecret`
+- **`POST /api/stripe/payment-method/save`** — stores PM ID + card brand/last4 in `users` table after setup completes
+- **`POST /api/trades/[id]/auto-pay`** — off-session charge: reads buyer's saved Customer + PM, creates `{ confirm: true, off_session: true }` PaymentIntent; `payment_intent.succeeded` triggers existing Flow A
+- **`GET /api/users/me`** — returns buyer payment method details (card brand/last4) for account page display
+- **`scripts/buyer-agent.ts`** — autonomous buyer agent script: polls Supabase for `deposited` trades where wallet is buyer, calls auto-pay for each; runs as a standalone loop or inside a Claude SDK agent tool
+- **DB migration `005`** — `users.stripe_customer_id`, `stripe_buyer_pm_id`, `stripe_buyer_card_brand`, `stripe_buyer_card_last4`
+
 ## [1.1.0] — 2026-05-01
 ### Phase 6 — Stripe Link SPT buyer payment
 
