@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.0.2] — 2026-05-01
+### Bug fixes — P1 audit fixes
+
+- **`stripe_payment_intent_id` migration**: added `ALTER TABLE trades ADD COLUMN IF NOT EXISTS stripe_payment_intent_id text` as `003_stripe_payment_intent.sql`; column was used by the payment-intent route but never existed in production schema
+- **seller `charges_enabled` check**: `POST /api/trades/[id]/payment-intent` now retrieves the seller's Stripe Connect account and returns 409 if `charges_enabled` is false before creating the PaymentIntent
+- **webhook error instanceof**: replaced fragile error-message regex in `agent/src/routes/webhooks.ts` with `err instanceof Stripe.errors.StripeSignatureVerificationError` for reliable 400 vs 500 discrimination
+
 ## [1.0.1] — 2026-05-01
 ### Bug fixes — P0/P1 audit fixes
 

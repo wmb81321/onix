@@ -16,7 +16,7 @@ export async function POST(
 
   const { data: trade } = await db
     .from('trades')
-    .select('id, status, usd_amount, stripe_payment_intent_id')
+    .select('id, status, usd_amount, stripe_payment_intent_id, seller_address')
     .eq('id', tradeId)
     .single()
 
@@ -27,6 +27,28 @@ export async function POST(
   if (trade.status !== 'deposited') {
     return NextResponse.json(
       { error: `Trade is ${trade.status}, expected deposited` },
+      { status: 409 },
+    )
+  }
+
+  // Verify the seller's Stripe Connect account is active before creating the PI
+  const { data: seller } = await db
+    .from('users')
+    .select('stripe_account')
+    .eq('address', trade.seller_address)
+    .single()
+
+  if (!seller?.stripe_account) {
+    return NextResponse.json(
+      { error: 'Seller has not connected a Stripe account' },
+      { status: 409 },
+    )
+  }
+
+  const sellerAccount = await stripe.accounts.retrieve(seller.stripe_account)
+  if (!sellerAccount.charges_enabled) {
+    return NextResponse.json(
+      { error: 'Seller Stripe account is not yet fully verified' },
       { status: 409 },
     )
   }

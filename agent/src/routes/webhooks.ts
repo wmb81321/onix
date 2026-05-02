@@ -1,3 +1,4 @@
+import Stripe from 'stripe'
 import type { Router } from '../lib/router.js'
 import { readRawBody, json } from '../lib/router.js'
 import { verifyAndDispatch } from '../stripe/webhook.js'
@@ -20,8 +21,7 @@ export function registerWebhookRoutes(router: Router): void {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Webhook error'
       console.error('[webhook] Rejected:', message)
-      // WebhookSignatureVerificationError always starts with "No signatures" or "Webhook signature"
-      const isSigError = /^(No signatures|Webhook signature|No timestamp found)/i.test(message)
+      const isSigError = err instanceof Stripe.errors.StripeSignatureVerificationError
       json(res, isSigError ? 400 : 500, { error: message })
       return
     }
