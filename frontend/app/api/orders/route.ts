@@ -47,7 +47,12 @@ export async function POST(req: NextRequest) {
   const { user_address, type, usdc_amount, rate } = parsed.data
   const usd_amount = Math.round(usdc_amount * rate * 100) / 100
 
-  const db = createServerClient()
+  let db: ReturnType<typeof createServerClient>
+  try {
+    db = createServerClient()
+  } catch (e) {
+    return NextResponse.json({ error: 'Database not configured' }, { status: 503 })
+  }
 
   // Ensure user row exists before inserting order (prevents FK violation on first order)
   await db

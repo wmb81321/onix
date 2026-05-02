@@ -11,11 +11,20 @@ export async function POST(
   }
 
   // settle is a public mppx endpoint — the 0.1 USDC payment IS the auth, no Bearer header
-  const res = await fetch(`${agentUrl}/trades/${id}/settle`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  })
+  let res: Response
+  try {
+    res = await fetch(`${agentUrl}/trades/${id}/settle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+  } catch {
+    return NextResponse.json({ error: 'Settlement agent unreachable' }, { status: 503 })
+  }
 
-  const data = await res.json() as unknown
+  const text = await res.text()
+  let data: unknown
+  try { data = JSON.parse(text) } catch {
+    return NextResponse.json({ error: `Agent error (${res.status})` }, { status: 502 })
+  }
   return NextResponse.json(data, { status: res.status })
 }

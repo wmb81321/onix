@@ -11,14 +11,23 @@ export async function POST(
     return NextResponse.json({ error: 'Agent not configured' }, { status: 503 })
   }
 
-  const res = await fetch(`${agentUrl}/trades/${id}/link-pay`, {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-  })
+  let res: Response
+  try {
+    res = await fetch(`${agentUrl}/trades/${id}/link-pay`, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    })
+  } catch {
+    return NextResponse.json({ error: 'Settlement agent unreachable' }, { status: 503 })
+  }
 
-  const data = await res.json() as unknown
+  const text = await res.text()
+  let data: unknown
+  try { data = JSON.parse(text) } catch {
+    return NextResponse.json({ error: `Agent error (${res.status})` }, { status: 502 })
+  }
   return NextResponse.json(data, { status: res.status })
 }
