@@ -7,7 +7,7 @@ Deploy the agent to Railway production via GitHub push.
 - **URL:** `https://convexo-p2p-agent-production.up.railway.app`
 - **Repo:** `wmb81321/onix`, root dir: `/agent`, builder: Dockerfile
 - **Trigger:** any push to `main` branch auto-deploys (GitHub integration)
-- **Version:** v1.3.0
+- **Version:** v2.0.0
 
 ## Deploy steps
 
@@ -29,7 +29,7 @@ Deploy the agent to Railway production via GitHub push.
    ```bash
    curl https://convexo-p2p-agent-production.up.railway.app/health
    ```
-   Expected: `{"status":"ok"}`
+   Expected: `{"status":"ok","version":"2.0.0"}`
 
 > **Note:** `railway up` is NOT used. Always deploy via `git push`.
 
@@ -46,19 +46,15 @@ Deploy the agent to Railway production via GitHub push.
 | `TEMPO_CHAIN_ID` | `42431` (Moderato testnet) |
 | `TEMPO_PATHUSDC_ADDRESS` | `0x20c0000000000000000000000000000000000000` |
 | `MPP_SECRET_KEY` | HMAC key for challenge IDs (min 16 chars) |
+| `CHARGE_AMOUNT_USDC` | Service fee amount, e.g. `0.1` |
 | `FACILITATOR_URL` | Public URL of this agent (self-referential) |
-| `STRIPE_SECRET_KEY` | Stripe secret key (`sk_test_...` for testnet) |
-| `STRIPE_WEBHOOK_SECRET` | Full `whsec_...` from Stripe dashboard |
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only — never expose to browser |
 | `AGENT_API_KEY` | Bearer token for agent routes (shared with frontend) |
 
-## Optional env vars
+## Removed in v2.0 (delete from Railway if still present)
 
-| Var | Purpose |
-|---|---|
-| `LINK_CLI_AUTH` | JSON blob from `~/.config/link-cli-nodejs/config.json` — enables Link CLI at startup |
-| `LINK_DEFAULT_PM_ID` | Deprecated — do not use. Per-buyer PM IDs are stored in `users.link_payment_method_id` |
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `LINK_CLI_AUTH`, `LINK_DEFAULT_PM_ID` — no longer read by any production code path.
 
 To add or update:
 ```bash
