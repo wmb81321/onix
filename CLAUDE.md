@@ -4,9 +4,9 @@ p2pai is an agentic P2P crypto-fiat settlement app. An AI Agent coordinates trad
 
 ---
 
-## Current Build Status (2026-05-03) — v2.2.0
+## Current Build Status (2026-05-03) — v2.3.0
 
-**Taker fee at trade creation. Mutual cancellation with two-party consent and on-chain USDC refund. Image proof upload via Supabase Storage. 11 migrations applied. Legacy Stripe columns dropped.**
+**Taker fee. Mutual cancellation with USDC refund. Image proof upload. Agent API spec. Stripe columns dropped. 11 migrations applied.**
 
 | Layer | Status | Notes |
 |---|---|---|
@@ -48,14 +48,12 @@ p2pai is an agentic P2P crypto-fiat settlement app. An AI Agent coordinates trad
 | Stripe frontend routes | ✗ Stubbed (410) | `/api/stripe/*`, `/api/users/link-pm`, `/api/trades/[id]/{link-pay,auto-pay,payment-intent}` |
 | Stripe components | ✗ Stubbed | `BuyerPaymentForm`, `LinkPayButton`, `LinkPmSetup`, `SaveCardForm`, `StripeConnectButton` are now `export {}` |
 | Stripe webhook | ✗ Removed | `we_1TSOSkIeMhBdGlf7tM8ekyQI` no longer routes to anything |
-| Agent API spec doc | ✗ Next | `docs/agent-api.md` — refresh for v2.2 endpoints |
-| Seller agent script | ✗ Next | `scripts/seller-agent.ts` — auto-deposit on matched orders |
-| Plaid integration | ✗ Phase 9 | Bank account connect + balance signal at trade time (planned) |
-| `scripts/buyer-agent.ts` | ⚠ Stale | Still calls removed `/api/trades/:id/link-pay` — needs rewrite for `payment-sent` |
-| `frontend/app/stripe/` pages | ⚠ Stale | `return/`, `payment-return/` directories no longer reachable from UI |
-| `agent/dist/` | ⚠ Stale | Old build artifacts (stripe/, flowA.js) — safe to `rm -rf` |
-| `agent/dist/` rebuild | ⚠ Pending | `pnpm --filter agent build` to regenerate clean dist |
-| Mainnet deploy | ✗ Future | Switch chain, real USDC |
+| Agent API spec doc | ✓ Done | `docs/agent-api.md` — full v2.2 reference, all endpoints, state machine, mppx setup |
+| Cleanup pass (Phase 10) | ✓ Done | Migration 011; `frontend/app/stripe/` removed; buyer-agent.ts fixed; stale commands removed |
+| Seller agent script | ✗ Phase 11 | `scripts/seller-agent.ts` — auto-deposit on matched orders |
+| End-to-end agentic test | ✗ Phase 12 | `scripts/e2e-agentic.ts` — full headless trade on testnet |
+| Mainnet deploy | ✗ Phase 13 | Switch chain, real USDC |
+| Plaid integration | ✗ Phase 14 | Bank account connect + balance signal at trade time (planned) |
 
 ---
 

@@ -7,7 +7,7 @@ Agentic P2P crypto-fiat settlement on Tempo. An AI Agent coordinates trades betw
 
 ---
 
-## What Works Today (v2.2.0 · Moderato Testnet)
+## What Works Today (v2.3.0 · Moderato Testnet)
 
 - **Order book** — live BUY/SELL orders with Supabase Realtime; filter by All/Buy/Sell; own orders expandable with cancel button
 - **Place orders** — pay 0.1 USDC service fee (mppx push mode) → order created with per-order virtual deposit address; payment methods shown inline for SELL orders
@@ -157,11 +157,11 @@ mcp-server/
   src/index.ts               p2pai-mcp npm package — 8 MCP tools for agents
 
 supabase/
-  migrations/                010 migrations applied (cancel columns, new statuses)
+  migrations/                011 migrations applied (Stripe columns dropped)
 
 docs/
+  agent-api.md               Full v2.2 API reference — all endpoints, auth, state machine
   tempo/tempoSDK.md          Full Tempo Accounts SDK reference
-  agent-api.md               Agent HTTP API reference (pending refresh for v2.2)
 ```
 
 ---
@@ -208,9 +208,7 @@ npx p2pai-mcp   # or add to mcp.json
 
 See [ROADMAP.md](./ROADMAP.md) for the full phase plan. See [docs/agent-api.md](./docs/agent-api.md) for the full API reference.
 
-- **Phase 9** — Plaid bank integration: connect bank accounts, read balances as a trust signal at trade time (planned, not yet implemented)
-- **Phase 10** — Refresh `docs/agent-api.md` for v2.2 endpoints
 - **Phase 11** — `scripts/seller-agent.ts` — auto-deposit on matched orders
-- **Phase 12** — `scripts/e2e-agentic.ts` — full headless trade test
-- **Phase 13** — Cleanup pass: drop legacy Stripe DB columns, rebuild `agent/dist/`
-- **Phase 14** — Mainnet deploy (switch chain, real USDC)
+- **Phase 12** — `scripts/e2e-agentic.ts` — full headless trade test (both agents, testnet)
+- **Phase 13** — Mainnet deploy (switch chain, real USDC)
+- **Phase 14** — Plaid bank integration: read-only balance signal at trade time
