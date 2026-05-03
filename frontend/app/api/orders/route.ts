@@ -42,20 +42,34 @@ export async function POST(req: NextRequest) {
   if (authorization) forwardHeaders['authorization'] = authorization
 
   const body = await req.text()
-  const agentRes = await fetch(`${agentUrl}/orders`, {
-    method: 'POST',
-    headers: forwardHeaders,
-    body,
-  })
+
+  let agentRes: Response
+  try {
+    agentRes = await fetch(`${agentUrl}/orders`, {
+      method: 'POST',
+      headers: forwardHeaders,
+      body,
+      // Disable Next.js fetch caching — needed so 402 responses are not mangled
+      cache: 'no-store',
+    })
+  } catch (err) {
+    console.error('[POST /api/orders] fetch to agent failed:', err)
+    return NextResponse.json({ error: 'Agent unreachable' }, { status: 502 })
+  }
 
   const text = await agentRes.text()
   const resHeaders = new Headers({ 'Content-Type': 'application/json' })
 
   // Pass through all 402-related headers so mppx/client can parse the challenge
   for (const header of ['www-authenticate', 'x-payment-response', 'x-payment-required', 'accept-payment']) {
-    const val = agentRes.headers.get(header)
-    if (val) resHeaders.set(header, val)
+    try {
+      const val = agentRes.headers.get(header)
+      if (val) resHeaders.set(header, val)
+    } catch (err) {
+      console.error(`[POST /api/orders] failed to set response header ${header}:`, err)
+    }
   }
 
+  console.log(`[POST /api/orders] agent status=${agentRes.status} body_len=${text.length}`)
   return new NextResponse(text, { status: agentRes.status, headers: resHeaders })
 }
