@@ -1,4 +1,4 @@
-# Convexo P2P
+# p2pai
 
 Agentic P2P crypto-fiat settlement on Tempo. An AI Agent coordinates trades between unknown counterparties — using Tempo Virtual Addresses for USDC escrow and direct counterparty payments (Zelle, Venmo, bank transfer, etc.) for fiat. No Stripe, no custom Solidity, no centralized custody.
 
@@ -23,7 +23,7 @@ Agentic P2P crypto-fiat settlement on Tempo. An AI Agent coordinates trades betw
 - **Account page** — pathUSD balance via `Hooks.token.useGetBalance`, in-app testnet faucet, payment methods editor, order/trade history
 - **In-app testnet faucet** — one-click test tokens via `Hooks.faucet.useFundSync`
 - **Agent-native settle path** — autonomous agents can call `POST /trades/:id/settle` with Bearer auth; seller still confirms receipt manually
-- **MCP server** — `convexo-p2p-mcp` npm package with 8 tools; any Claude agent can add it to their `mcp.json` and trade autonomously
+- **MCP server** — `p2pai-mcp` npm package with 8 tools; any Claude agent can add it to their `mcp.json` and trade autonomously
 
 ---
 
@@ -97,7 +97,7 @@ POST /trades/:id/confirm-payment  # releases USDC on-chain
 ## Local Dev
 
 ```bash
-git clone <repo-url> convexo_p2p && cd convexo_p2p
+git clone <repo-url> p2pai && cd p2pai
 cp .env.example .env
 # Fill in keys — see .env.example for all required vars
 
@@ -154,7 +154,7 @@ scripts/
   buyer-agent.ts             Stale — needs rewrite for /payment-sent (was /link-pay)
 
 mcp-server/
-  src/index.ts               convexo-p2p-mcp npm package — 8 MCP tools for agents
+  src/index.ts               p2pai-mcp npm package — 8 MCP tools for agents
 
 supabase/
   migrations/                010 migrations applied (cancel columns, new statuses)
@@ -188,7 +188,7 @@ cast balance 0x6772787e16a7ea4c5307cc739cc5116b4b26ffc0 \
 ## MCP Tools (for autonomous agents)
 
 ```bash
-npx convexo-p2p-mcp   # or add to mcp.json
+npx p2pai-mcp   # or add to mcp.json
 ```
 
 | Tool | Description |

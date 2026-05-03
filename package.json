@@ -1,5 +1,5 @@
 {
-  "name": "convexo-p2p",
+  "name": "p2pai",
   "private": true,
   "scripts": {
     "dev": "pnpm --parallel --filter './frontend' --filter './agent' dev",

@@ -1,4 +1,4 @@
-# Convexo P2P — x402 / MPP Patterns
+# p2pai — x402 / MPP Patterns
 
 This project uses the **`mppx` library** for HTTP 402 / MPP session middleware. We do not roll our own 402 challenge/response handshake.
 
@@ -45,7 +45,7 @@ const mppx = Mppx.create({
 
 ## Service Discovery
 
-- **Register the agent as a discoverable paid service** via `tempo wallet services`. This makes Convexo P2P findable by other agents that want to pay for settlement.
+- **Register the agent as a discoverable paid service** via `tempo wallet services`. This makes p2pai findable by other agents that want to pay for settlement.
 - Re-register on every environment (testnet vs mainnet) as separate listings.
 
 ## Idempotency

@@ -1,4 +1,4 @@
-# Convexo P2P — Tempo Integration Patterns
+# p2pai — Tempo Integration Patterns
 
 Project-specific rules for how this codebase uses Tempo: Virtual Addresses, Tempo Wallet, access keys, MPP middleware, and the EVM execution surface.
 

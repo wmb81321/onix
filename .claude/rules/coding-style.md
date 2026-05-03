@@ -1,4 +1,4 @@
-# Convexo P2P — Coding Style Rules
+# p2pai — Coding Style Rules
 
 These rules apply to all TypeScript code in `agent/`, `mcp-server/`, `scripts/`, and `frontend/`. There is no Solidity in this project (Tempo handles escrow via Virtual Addresses), so the previously-referenced `solidity-conventions.md` does not exist.
 

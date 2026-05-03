@@ -1,6 +1,6 @@
-# Convexo P2P — Project Memory
+# p2pai — Project Memory
 
-Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinates trades between unknown counterparties using Tempo's native primitives. Crypto escrow is handled via Tempo Virtual Addresses (TIP-20 native deposit attribution that auto-forwards to a master wallet); fiat moves **directly between counterparties** (Zelle, Venmo, bank transfer, wire, etc.); the seller confirms receipt in the app and the agent then releases USDC on-chain. A 0.1 USDC service fee is charged via MPP (`mppx`) at **order creation** (maker fee) and again at **trade creation** (taker fee) — fees are forfeited on cancel or expiry. No Stripe, no custom Solidity, no TEE, no ERC-8004, no Privy in the MVP — Tempo Wallet, Virtual Addresses, MPP, and Supabase carry the full stack.
+p2pai is an agentic P2P crypto-fiat settlement app. An AI Agent coordinates trades between unknown counterparties using Tempo's native primitives. Crypto escrow is handled via Tempo Virtual Addresses (TIP-20 native deposit attribution that auto-forwards to a master wallet); fiat moves **directly between counterparties** (Zelle, Venmo, bank transfer, wire, etc.); the seller confirms receipt in the app and the agent then releases USDC on-chain. A 0.1 USDC service fee is charged via MPP (`mppx`) at **order creation** (maker fee) and again at **trade creation** (taker fee) — fees are forfeited on cancel or expiry. No Stripe, no custom Solidity, no TEE, no ERC-8004, no Privy in the MVP — Tempo Wallet, Virtual Addresses, MPP, and Supabase carry the full stack.
 
 ---
 
@@ -39,7 +39,7 @@ Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinate
 | Account page | ✓ Live | Balance (native hook), faucet, payment methods editor, order/trade history |
 | Ratings | ✓ Live | 1-5 stars after released/complete, updates rating_avg |
 | BUY order matching | ✓ Live | Buyer/seller roles swapped correctly for BUY orders |
-| MCP server (`convexo-p2p-mcp`) | ✓ v2.0.0 | 8 tools — `mark_payment_sent`, `confirm_payment`, `settle_trade` etc. |
+| MCP server (`p2pai-mcp`) | ✓ v2.0.0 | 8 tools — `mark_payment_sent`, `confirm_payment`, `settle_trade` etc. |
 | `/agents` page | ✓ Live | Developer install page — MCP snippet, tool table, example session |
 | Public `GET /api/orders` | ✓ Live | No-auth order listing; `?type=`, `?status=`, `?id=` query params |
 | mppx push mode | ✓ Live | `mode: 'push'` for both maker fee (place order) and taker fee (match order); no `feePayer: true` in agent config |
@@ -72,7 +72,7 @@ Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinate
 | `agent/src/lib/` | `env.ts`, `mppx.ts`, `router.ts`, `schemas.ts`, `supabase.ts` (no `link.ts`) | Railway |
 | `supabase/` | SQL migrations (010 applied) + RLS policies | Supabase (production) |
 | `scripts/` | `buyer-agent.ts` — currently stale; rewrite pending for v2.0 | Local / any Node host |
-| `mcp-server/` | `convexo-p2p-mcp` npm package — stdio MCP, 8 v2.0 tools | npm / `npx` |
+| `mcp-server/` | `p2pai-mcp` npm package — stdio MCP, 8 v2.0 tools | npm / `npx` |
 | `docs/` | Architecture references | — |
 | `.claude/` | Workspace rules, slash commands, hooks | — |
 | `.agents/skills/` | tempo-docs, x402, plus legacy stripe-best-practices / create-payment-credential / privy (kept as reference) | — |

@@ -44,12 +44,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 const MCP_SNIPPET = `{
   "mcpServers": {
-    "convexo-p2p": {
+    "p2pai": {
       "command": "npx",
-      "args": ["-y", "convexo-p2p-mcp"],
+      "args": ["-y", "p2pai-mcp"],
       "env": {
-        "CONVEXO_API_URL": "https://convexo-p2p.vercel.app",
-        "CONVEXO_BUYER_ADDRESS": "0x<your-wallet>"
+        "P2PAI_API_URL": "https://convexo-p2p.vercel.app",
+        "P2PAI_BUYER_ADDRESS": "0x<your-wallet>"
       }
     }
   }
@@ -106,11 +106,11 @@ export function AgentsContent() {
       {/* Hero */}
       <section className="space-y-4">
         <h1 className="text-2xl font-semibold text-ink tracking-tight">
-          Add Convexo P2P to your agent
+          Add p2pai to your agent
         </h1>
         <p className="font-mono text-sm text-dim leading-relaxed max-w-2xl">
           Trade crypto&nbsp;&#8596;&nbsp;fiat autonomously.
-          Convexo P2P exposes a full settlement API and MCP server —
+          p2pai exposes a full settlement API and MCP server —
           your agent can post orders, match trades, and execute payments
           without any human in the loop.
         </p>
@@ -143,10 +143,10 @@ export function AgentsContent() {
         </div>
         <p className="font-mono text-[11px] text-dim/60">
           Or run directly:{' '}
-          <span className="text-ink">npx convexo-p2p-mcp</span>
+          <span className="text-ink">npx p2pai-mcp</span>
         </p>
         <p className="font-mono text-[11px] text-dim/50">
-          Set <span className="text-ink">CONVEXO_BUYER_ADDRESS</span> to your wallet address.
+          Set <span className="text-ink">P2PAI_BUYER_ADDRESS</span> to your wallet address.
           The MCP server uses it to scope trade lookups and actions.
         </p>
       </section>
@@ -228,7 +228,7 @@ export function AgentsContent() {
           Seller agents can post orders, monitor for matches, and deposit USDC automatically using
           the same MCP tools.{' '}
           <span className="text-ink">seller-agent.ts</span> reference implementation coming in Phase 9.
-          Set <span className="text-ink">CONVEXO_SELLER_ADDRESS</span> in env to default all sell-side calls.
+          Set <span className="text-ink">P2PAI_SELLER_ADDRESS</span> in env to default all sell-side calls.
         </p>
       </section>
 
@@ -245,7 +245,7 @@ export function AgentsContent() {
             <span className="font-mono text-[10px] text-dim/50 uppercase tracking-widest">Value</span>
           </div>
           {[
-            { k: 'Base URL',     v: 'https://convexo-p2p.vercel.app' },
+            { k: 'Base URL',     v: 'https://p2pai.vercel.app (or convexo-p2p.vercel.app)' },
             { k: 'Auth',         v: 'None required for read endpoints' },
             { k: 'Orders',       v: 'GET /api/orders?type=sell&status=open' },
             { k: 'Single order', v: 'GET /api/orders?id={order_id}' },

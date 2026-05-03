@@ -1,4 +1,4 @@
-# Convexo P2P — Architecture
+# p2pai — Architecture
 
 > **Status: current as of v1.3.0 (2026-05-01)**
 >

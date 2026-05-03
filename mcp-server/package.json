@@ -1,9 +1,9 @@
 {
-  "name": "convexo-p2p-mcp",
+  "name": "p2pai-mcp",
   "version": "1.0.0",
-  "description": "MCP server for Convexo P2P — agentic crypto-fiat settlement",
+  "description": "MCP server for p2pai — agentic crypto-fiat settlement",
   "type": "module",
-  "bin": { "convexo-p2p-mcp": "./dist/index.js" },
+  "bin": { "p2pai-mcp": "./dist/index.js" },
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc",

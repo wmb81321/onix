@@ -1,8 +1,8 @@
-# Convexo P2P — Stripe Integration Rules
+# p2pai — Stripe Integration Rules
 
 > **DEPRECATED — Stripe was removed in v2.0.0 (2026-05-02).**
 >
-> The Convexo P2P MVP no longer uses any Stripe product. Fiat payments are now sent
+> The p2pai MVP no longer uses any Stripe product. Fiat payments are now sent
 > directly between counterparties (Zelle, Venmo, bank transfer, wire, etc.); the
 > seller manually confirms receipt in the app, and the agent then releases USDC
 > on-chain.

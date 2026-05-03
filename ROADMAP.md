@@ -1,4 +1,4 @@
-# Convexo P2P — Roadmap
+# p2pai — Roadmap
 
 ## Current state: v2.2.0 (2026-05-03)
 
@@ -18,7 +18,7 @@ Next focus: Agent API spec refresh, then cleanup pass — clearing the path to m
 | 3 — Order book UI | v1.0.0 | Filter tabs, inline toolbar, unified table |
 | 3b — Account page | v1.0.0 | Balance, faucet, order/trade history |
 | 5 — BUY orders + ratings | v1.0.0 | BUY order matching (roles swapped), 1–5 star ratings, trade completion |
-| 8 — MCP server | v1.4.0 | `convexo-p2p-mcp` npm package (8 tools, stdio MCP), `/agents` page, public `GET /api/orders`, `settle_trade` crypto-native tool |
+| 8 — MCP server | v1.4.0 | `p2pai-mcp` npm package (8 tools, stdio MCP), `/agents` page, public `GET /api/orders`, `settle_trade` crypto-native tool |
 | v2.0 — Direct payments | v2.0.0 | Stripe removed; `flowManual.ts`; PaymentSentForm + ConfirmPaymentPanel + PaymentMethodsEditor; migration 006; MCP tools updated |
 | Tempo SDK alignment | v2.0.0 | `wallet_getBalances` hook; `tempoWallet` from `wagmi/connectors`; balance display fixed |
 | Dev env setup | v2.0.0 | `mppx` skill; `tempo-docs` skill; `mcp.json` with `tempo` + `mpp` servers |

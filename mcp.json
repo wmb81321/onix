@@ -1,5 +1,5 @@
 {
-  "_readme": "Project MCP configuration for Convexo P2P. Extends globally-available claude.ai plugin MCPs. See CLAUDE.md for the full MCP + CLI reference table.",
+  "_readme": "Project MCP configuration for p2pai. Extends globally-available claude.ai plugin MCPs. See CLAUDE.md for the full MCP + CLI reference table.",
 
   "_globally_available_mcps": {
     "plugin:supabase":   "Supabase — execute_sql, apply_migration, list_tables, get_logs. Prefix: mcp__plugin_supabase_supabase__*",

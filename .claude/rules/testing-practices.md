@@ -1,4 +1,4 @@
-# Convexo P2P — Testing Practices
+# p2pai — Testing Practices
 
 ## Flow Tests
 

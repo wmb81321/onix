@@ -6,9 +6,9 @@ import { z } from 'zod'
 // Environment
 // ---------------------------------------------------------------------------
 
-const API_URL        = process.env['CONVEXO_API_URL']       ?? 'https://convexo-p2p.vercel.app'
-const BUYER_ADDRESS  = process.env['CONVEXO_BUYER_ADDRESS'] ?? null
-const SELLER_ADDRESS = process.env['CONVEXO_SELLER_ADDRESS'] ?? null
+const API_URL        = process.env['P2PAI_API_URL']       ?? 'https://convexo-p2p.vercel.app'
+const BUYER_ADDRESS  = process.env['P2PAI_BUYER_ADDRESS'] ?? null
+const SELLER_ADDRESS = process.env['P2PAI_SELLER_ADDRESS'] ?? null
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,9 +45,9 @@ function err(message: string) {
 // ---------------------------------------------------------------------------
 
 const server = new McpServer({
-  name: 'convexo-p2p',
+  name: 'p2pai',
   version: '2.0.0',
-  description: 'Agentic P2P crypto-fiat settlement on Tempo — direct counterparty payments',
+  description: 'p2pai — agentic P2P crypto-fiat settlement on Tempo. Direct counterparty payments.',
 })
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Convexo P2P — Buyer Agent v2.0.0 (payment-sent path)
+ * p2pai — Buyer Agent v2.0.0 (payment-sent path)
  *
  * Monitors trades for a buyer wallet address. When a trade reaches `deposited`
  * (seller has deposited USDC into escrow), calls POST /api/trades/:id/payment-sent
@@ -156,7 +156,7 @@ async function poll(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 console.log('[buyer-agent] ─────────────────────────────────────────────')
-console.log(`[buyer-agent] Convexo P2P Buyer Agent v2.0.0`)
+console.log(`[buyer-agent] p2pai Buyer Agent v2.0.0`)
 console.log(`[buyer-agent] Watching for:   buyer_address = ${ENV.BUYER_ADDRESS}`)
 console.log(`[buyer-agent]                  status        = deposited`)
 console.log(`[buyer-agent] Payment method: ${ENV.PAYMENT_METHOD}`)
