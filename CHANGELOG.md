@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.3.1] — 2026-05-03
+
+### Added
+- **`scripts/seller-agent.ts`** (Phase 11) — autonomous seller agent that polls Supabase for `status = created` trades matching `SELLER_ADDRESS`, checks USDC balance, and deposits exact USDC to the virtual deposit address via viem. Mirrors the `buyer-agent.ts` polling pattern with idempotent session-level deduplication.
+- **`frontend/app/llms.txt/route.ts`** and **`frontend/app/llms-full.txt/route.ts`** — static plain-text LLM context endpoints (`force-static`) following the llms.txt convention; full API reference served at `/llms-full.txt`
+- **`skill.md`** at repo root — enables `npx skills add wmb81321/p2pai` for persistent Claude Code context across sessions
+- **Agents page** — "Context for your LLM" section with three install options: Claude Code skill (recommended), llms-full.txt URL, MCP teaser
+
+### Updated
+- `README.md` — folder map and MCP tools table corrected to current 8 tools; Phase 11 marked complete
+- `ROADMAP.md` and `CLAUDE.md` — Phase 11 marked complete; phases 12-14 remain
+
+---
+
 ## [2.3.0] — 2026-05-03
 
 ### Removed

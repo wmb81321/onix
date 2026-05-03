@@ -1,10 +1,10 @@
 # p2pai — Roadmap
 
-## Current state: v2.2.0 (2026-05-03)
+## Current state: v2.3.1 (2026-05-03)
 
-Taker fee live — both maker and taker pay 0.1 USDC via mppx push mode. Mutual cancellation with two-party consent and on-chain USDC refund shipped. Image proof upload added to PaymentSentForm. Full direct counterparty settlement flow live — buyer pays seller off-platform (Zelle/Venmo/bank/wire), seller confirms receipt, agent releases USDC on-chain. MCP server (8 tools), x402 settle path, and full frontend on Vercel + agent on Railway.
+Seller agent shipped (Phase 11) — `scripts/seller-agent.ts` auto-deposits USDC when a trade reaches `created`. LLM-consumable context at `/llms.txt` + `/llms-full.txt` + `skill.md`. Full direct counterparty settlement flow live — buyer pays seller off-platform (Zelle/Venmo/bank/wire), seller confirms receipt, agent releases USDC on-chain. MCP server (8 tools). Frontend on Vercel + agent on Railway.
 
-Next focus: Agent API spec refresh, then cleanup pass — clearing the path to mainnet before adding Plaid.
+Next focus: End-to-end agentic test (Phase 12) — both agents run headlessly, trade completes on testnet.
 
 ---
 
@@ -29,24 +29,7 @@ Next focus: Agent API spec refresh, then cleanup pass — clearing the path to m
 | v2.2.0 — Taker fee + mutual cancel + image proof | v2.2.0 | Taker fee (mppx 402 at `POST /trades`); mutual cancellation (`cancel_requested` status, confirm/reject paths, USDC refund); image proof upload (Supabase Storage); migrations 009 + 010 |
 | Phase 9 — Agent API spec | v2.2.0 | `docs/agent-api.md` — full v2.2 endpoint reference; all routes, auth model, schemas, state machine, mppx client setup, full trade walkthrough |
 | Phase 10 — Cleanup pass | v2.3.0 | Migration 011 (drop 10 Stripe columns); remove `frontend/app/stripe/` pages; remove stale slash commands; fix `buyer-agent.ts` response check + Bearer header; clean `agents-content.tsx` copy |
-
----
-
-## Phase 11 — Seller agent script
-
-**Goal:** `scripts/seller-agent.ts` — runs unattended and deposits USDC for newly matched trades.
-
-```bash
-SELLER_ADDRESS=0x... FRONTEND_URL=https://... tsx scripts/seller-agent.ts
-```
-
-Steps:
-1. Poll Supabase for trades where `seller_address = SELLER_ADDRESS` and `status = created`
-2. Check USDC balance (`cast balance` or Tempo RPC)
-3. Transfer exact USDC to `virtual_deposit_address` via `tempo wallet transfer` or viem
-4. Poll until `status = deposited` → log
-
-**Done when:** Seller agent deposits USDC for a matched trade with zero manual steps.
+| Phase 11 — Seller agent script | v2.3.1 | `scripts/seller-agent.ts` — polls for `status = created` trades, checks USDC balance, deposits to virtual address via viem; mirrors buyer-agent.ts polling pattern |
 
 ---
 

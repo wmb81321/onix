@@ -151,7 +151,8 @@ frontend/
     balance-display.tsx      pathUSD balance via Hooks.token.useGetBalance
 
 scripts/
-  buyer-agent.ts             Stale — needs rewrite for /payment-sent (was /link-pay)
+  buyer-agent.ts             Polls for deposited trades → calls POST /payment-sent autonomously
+  seller-agent.ts            Polls for created trades → deposits USDC to virtual address autonomously
 
 mcp-server/
   src/index.ts               p2pai-mcp npm package — 8 MCP tools for agents
@@ -193,14 +194,14 @@ npx p2pai-mcp   # or add to mcp.json
 
 | Tool | Description |
 |---|---|
-| `get_orders` | List open orders from the order book |
+| `list_orders` | Browse open orders on the book |
 | `get_trade` | Fetch trade details and current status |
-| `create_order` | Post a new SELL or BUY order |
-| `match_order` | Match an existing order to create a trade |
+| `get_my_trades` | Your full trade history for a wallet |
+| `create_order` | Post a new SELL or BUY order (pays maker fee) |
+| `match_order` | Match an existing order to create a trade (pays taker fee) |
 | `mark_payment_sent` | Buyer marks fiat as sent (method + reference) |
 | `confirm_payment` | Seller confirms receipt → USDC released on-chain |
-| `settle_trade` | Pay 0.1 USDC mppx fee → marks payment_sent (x402 path, deprecated) |
-| `submit_rating` | Rate the counterparty after trade completes |
+| `get_trade_status_description` | Human-readable next step for a trade |
 
 ---
 
@@ -208,7 +209,6 @@ npx p2pai-mcp   # or add to mcp.json
 
 See [ROADMAP.md](./ROADMAP.md) for the full phase plan. See [docs/agent-api.md](./docs/agent-api.md) for the full API reference.
 
-- **Phase 11** — `scripts/seller-agent.ts` — auto-deposit on matched orders
 - **Phase 12** — `scripts/e2e-agentic.ts` — full headless trade test (both agents, testnet)
 - **Phase 13** — Mainnet deploy (switch chain, real USDC)
 - **Phase 14** — Plaid bank integration: read-only balance signal at trade time
