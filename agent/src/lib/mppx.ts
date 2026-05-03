@@ -26,6 +26,11 @@ const mppx = Mppx.create({
       account: privateKeyToAccount(ENV.AGENT_ACCESS_KEY as `0x${string}`),
       currency: ENV.TEMPO_PATHUSDC_ADDRESS as `0x${string}`,
       recipient: ENV.AGENT_ACCESS_KEY_ADDRESS as `0x${string}`,
+      // Agent EOA co-signs pull-mode transactions as fee payer.
+      // Tempo passkey wallets produce type-0x78 txs that need a fee payer
+      // countersignature before broadcast — without this the RPC returns
+      // "fee payer signature recovery failed".
+      feePayer: true,
       getClient: () => publicClient,
       testnet: ENV.NODE_ENV !== 'production',
     }),
