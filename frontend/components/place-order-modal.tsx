@@ -93,8 +93,13 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
       setPlaced(true)
       setTimeout(onClose, 2000)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      setError(msg.includes('rejected') ? 'Payment cancelled' : 'Network error — please try again')
+      console.error('[PlaceOrderModal] order creation failed:', err)
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel')) {
+        setError('Payment cancelled')
+      } else {
+        setError(`Payment error: ${msg}`)
+      }
     } finally {
       setSubmitting(false)
     }

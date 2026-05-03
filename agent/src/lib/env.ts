@@ -22,7 +22,6 @@ const schema = z.object({
 
   // Agent runtime
   PORT:               z.coerce.number().default(3001),
-  FACILITATOR_URL:    z.string().url(),
   CHARGE_AMOUNT_USDC: z.coerce.number().default(0.1),
   // Used by mppx to HMAC-bind challenge IDs (stateless verification)
   MPP_SECRET_KEY:     z.string().min(16),
