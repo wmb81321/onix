@@ -10,7 +10,7 @@ const mono  = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', weig
 
 export const metadata: Metadata = {
   title: 'Convexo P2P',
-  description: 'Trustless P2P crypto ↔ fiat settlement powered by Tempo and Stripe',
+  description: 'Trustless P2P crypto ↔ fiat settlement powered by Tempo and Supabase',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -52,7 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 Moderato testnet · chain 42431
               </span>
               <span className="font-mono text-[11px] text-dim/50">
-                Tempo · Stripe · Supabase
+                Tempo · Supabase
               </span>
             </footer>
           </div>

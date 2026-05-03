@@ -49,8 +49,7 @@ const MCP_SNIPPET = `{
       "args": ["-y", "convexo-p2p-mcp"],
       "env": {
         "CONVEXO_API_URL": "https://convexo-p2p.vercel.app",
-        "CONVEXO_BUYER_ADDRESS": "0x<your-wallet>",
-        "CONVEXO_LINK_PM_ID_NOTE": "Register your csmrpd_... at /account first"
+        "CONVEXO_BUYER_ADDRESS": "0x<your-wallet>"
       }
     }
   }
@@ -61,14 +60,14 @@ const MCP_SNIPPET = `{
 // ---------------------------------------------------------------------------
 
 const TOOLS = [
-  { name: 'list_orders',                  description: 'Browse open orders on the book',              role: 'Both'   },
-  { name: 'get_trade',                    description: 'Get trade status and next required action',    role: 'Both'   },
-  { name: 'get_my_trades',                description: 'Your full trade history',                      role: 'Both'   },
-  { name: 'create_order',                 description: 'Post a buy or sell order',                     role: 'Both'   },
-  { name: 'match_order',                  description: 'Match an order to create a trade',             role: 'Both'   },
-  { name: 'initiate_payment',             description: 'Start a Stripe Link spend request (fiat path)', role: 'Buyer' },
-  { name: 'settle_trade',                 description: 'Pay 0.1 USDC service fee — crypto-native path', role: 'Buyer' },
-  { name: 'get_trade_status_description', description: 'Human-readable next step for a trade',         role: 'Both'   },
+  { name: 'list_orders',                  description: 'Browse open orders on the book',                 role: 'Both'   },
+  { name: 'get_trade',                    description: 'Get trade status and next required action',       role: 'Both'   },
+  { name: 'get_my_trades',                description: 'Your full trade history',                         role: 'Both'   },
+  { name: 'create_order',                 description: 'Post a buy or sell order',                        role: 'Both'   },
+  { name: 'match_order',                  description: 'Match an order to create a trade',                role: 'Both'   },
+  { name: 'mark_payment_sent',            description: 'Buyer marks fiat payment sent (Zelle/Venmo/bank)', role: 'Buyer' },
+  { name: 'confirm_payment',              description: 'Seller confirms fiat received — triggers USDC release', role: 'Seller' },
+  { name: 'get_trade_status_description', description: 'Human-readable next step for a trade',            role: 'Both'   },
 ]
 
 // ---------------------------------------------------------------------------
@@ -89,11 +88,11 @@ const EXAMPLE: ConvLine[] = [
   { kind: 'output', text: '{ trade_id: "trd_xyz", virtual_deposit_address: "0xc4fe...", deposit_deadline: "..." }' },
   { kind: 'agent',  text: 'Checking what to do next...' },
   { kind: 'tool',   name: 'get_trade_status_description', result: '{ trade_id: "trd_xyz" }' },
-  { kind: 'output', text: '"Seller needs to deposit 100 USDC to 0xc4fe... within 30 minutes."' },
-  { kind: 'agent',  text: 'After deposit detected, initiating payment...' },
-  { kind: 'tool',   name: 'initiate_payment', result: '{ trade_id: "trd_xyz" }' },
-  { kind: 'output', text: '{ approvalUrl: "https://link.stripe.com/pay/...", spendRequestId: "..." }' },
-  { kind: 'agent',  text: 'Approve payment at https://link.stripe.com/pay/... to receive your USDC.' },
+  { kind: 'output', text: '"Buyer needs to send 105 USD via Zelle/Venmo, then mark payment sent."' },
+  { kind: 'agent',  text: 'Notifying platform that payment was sent...' },
+  { kind: 'tool',   name: 'mark_payment_sent', result: '{ trade_id: "trd_xyz" }' },
+  { kind: 'output', text: '{ status: "payment_sent", message: "Waiting for seller to confirm receipt." }' },
+  { kind: 'agent',  text: 'Seller confirmed — USDC will release on-chain automatically.' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -120,7 +119,7 @@ export function AgentsContent() {
             Testnet live
           </span>
           <span className="font-mono text-[11px] px-2.5 py-1 rounded-full border border-caution/30 bg-caution/[0.08] text-caution">
-            Stripe Link native
+            Manual settlement
           </span>
         </div>
       </section>
@@ -147,8 +146,8 @@ export function AgentsContent() {
           <span className="text-ink">npx convexo-p2p-mcp</span>
         </p>
         <p className="font-mono text-[11px] text-dim/50">
-          Before buying, register your Stripe Link payment method at{' '}
-          <span className="text-dim">/account</span>. The MCP server reads it via the API.
+          Set <span className="text-ink">CONVEXO_BUYER_ADDRESS</span> to your wallet address.
+          The MCP server uses it to scope trade lookups and actions.
         </p>
       </section>
 
