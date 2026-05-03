@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const METHOD_TYPES = ['Zelle', 'Venmo', 'CashApp', 'Bank Transfer', 'Wire', 'PayPal', 'Other'] as const
 
@@ -15,6 +15,11 @@ interface Props {
 export function PaymentMethodsEditor({ userAddress, initialMethods, onSaved }: Props) {
   const [methods,  setMethods]  = useState<PaymentMethod[]>(initialMethods)
   const [adding,   setAdding]   = useState(false)
+
+  // Sync when parent async-loads the saved methods (useState only uses the initial value once)
+  useEffect(() => {
+    if (!adding) setMethods(initialMethods)
+  }, [initialMethods]) // eslint-disable-line react-hooks/exhaustive-deps
   const [saving,   setSaving]   = useState(false)
   const [error,    setError]    = useState<string | null>(null)
   const [newType,  setNewType]  = useState('Zelle')

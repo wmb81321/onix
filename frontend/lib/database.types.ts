@@ -43,6 +43,8 @@ export type Database = {
           virtual_deposit_address: string | null
           service_fee_paid_at: string | null
           service_fee_tx_hash: string | null
+          // Migration 008 — payment methods snapshotted at order creation; private
+          seller_payment_methods: Array<{ type: string; label: string; value: string }> | null
         }
         Insert: {
           id?: string
@@ -54,12 +56,14 @@ export type Database = {
           virtual_deposit_address?: string | null
           service_fee_paid_at?: string | null
           service_fee_tx_hash?: string | null
+          seller_payment_methods?: Array<{ type: string; label: string; value: string }> | null
         }
         Update: {
           status?: Database['public']['Enums']['order_status']
           virtual_deposit_address?: string | null
           service_fee_paid_at?: string | null
           service_fee_tx_hash?: string | null
+          seller_payment_methods?: Array<{ type: string; label: string; value: string }> | null
         }
         Relationships: [
           {

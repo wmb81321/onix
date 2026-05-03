@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.1.3] — 2026-05-03
+
+### Fixed
+
+- **`PaymentMethodsEditor` stale state** (`payment-methods-editor.tsx`): `useState(initialMethods)` only captures the initial value at mount, which is `[]` before the async user fetch completes. Adding a new method would call `save([newMethod])`, overwriting existing methods. Fixed by adding `useEffect(() => { if (!adding) setMethods(initialMethods) }, [initialMethods])` to sync whenever the parent finishes loading.
+- **Supabase Realtime subscription instability** (`orderbook-client.tsx`): `createClient()` was called in the component body, creating a new object on every render. Because `supabase` was in `useEffect([supabase])`, the subscription was torn down and recreated on every render, dropping all Realtime events. Fixed with `useMemo(() => createClient(), [])`.
+- **Server refresh race overwriting locally-injected order** (`orderbook-client.tsx`): `useEffect([initialOrders])` was replacing state with `setOrders(initialOrders)`. If `router.refresh()` completed before the new order appeared in the Supabase query, the locally-injected order was erased. Fixed by merging: server orders replace known rows; locally-injected rows not yet in the server response are kept.
+
+### Added
+
+- **Migration 008** (`supabase/migrations/008_order_payment_methods.sql`): `orders.seller_payment_methods jsonb` — stores the seller's payment methods snapshotted at order creation. Private — not included in public order listing, only revealed to the matched buyer via the trade page.
+- **Payment method selection in Place Order modal** (`place-order-modal.tsx`): for SELL orders, payment methods are shown as a checklist (all selected by default). The seller can uncheck individual methods before placing. Selected methods are stored with the order via `POST /orders` → agent.
+- **Payment methods stored on order** (`agent/src/routes/orders.ts`): `CreateOrderBody` now accepts optional `payment_methods` array and stores it in `orders.seller_payment_methods`.
+- **Trade page reads from order** (`frontend/app/trades/[id]/page.tsx`): seller payment methods are now read from `orders.seller_payment_methods` (the snapshot at order creation). Falls back to the seller's live user profile for orders created before migration 008.
+- **Public order listing excludes payment info** (`frontend/app/api/orders/route.ts`): `seller_payment_methods` is explicitly excluded from all `GET /api/orders` responses; it is only accessible server-side on the trade page for the matched counterparty.
+
+### Updated
+
+- `agent/src/lib/schemas.ts`: moved `PaymentMethodSchema` before `OrderRowSchema` (used by both); `OrderRowSchema` extended with `seller_payment_methods`.
+- `frontend/lib/database.types.ts`: `orders` Row/Insert/Update extended with `seller_payment_methods`.
+
 ## [2.1.2] — 2026-05-03
 
 ### Fixed — mppx push mode; orderbook realtime; in-app deposit

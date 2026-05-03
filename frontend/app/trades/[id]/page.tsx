@@ -17,18 +17,25 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
 
   const trade = data as Trade
 
-  // Fetch seller's payment methods to show buyer where to send funds
-  const { data: sellerUser } = await db
-    .from('users')
-    .select('payment_methods')
-    .eq('address', trade.seller_address)
+  // Prefer the payment methods snapshotted on the order at creation time (migration 008).
+  // Fall back to the seller's current profile in case of older orders without the snapshot.
+  const { data: matchedOrder } = await db
+    .from('orders')
+    .select('seller_payment_methods')
+    .eq('id', trade.order_id)
     .single()
 
-  const sellerPaymentMethods = (sellerUser?.payment_methods ?? []) as Array<{
-    type: string
-    label: string
-    value: string
-  }>
+  let sellerPaymentMethods: Array<{ type: string; label: string; value: string }> =
+    (matchedOrder?.seller_payment_methods ?? []) as Array<{ type: string; label: string; value: string }>
+
+  if (sellerPaymentMethods.length === 0) {
+    const { data: sellerUser } = await db
+      .from('users')
+      .select('payment_methods')
+      .eq('address', trade.seller_address)
+      .single()
+    sellerPaymentMethods = (sellerUser?.payment_methods ?? []) as typeof sellerPaymentMethods
+  }
 
   return (
     <TradeDetail

@@ -7,11 +7,18 @@ import { chargeServiceFee } from '../lib/mppx.js'
 import { deriveDepositAddress } from '../tempo/virtualAddresses.js'
 import { ENV } from '../lib/env.js'
 
+const PaymentMethodItem = z.object({
+  type:  z.string().min(1).max(30),
+  label: z.string().min(1).max(60),
+  value: z.string().min(1).max(200),
+})
+
 const CreateOrderBody = z.object({
-  user_address: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
-  type:         z.enum(['buy', 'sell']),
-  usdc_amount:  z.number().min(5, 'Minimum order is 5 USDC'),
-  rate:         z.number().positive('Rate must be positive'),
+  user_address:    z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+  type:            z.enum(['buy', 'sell']),
+  usdc_amount:     z.number().min(5, 'Minimum order is 5 USDC'),
+  rate:            z.number().positive('Rate must be positive'),
+  payment_methods: z.array(PaymentMethodItem).max(10).optional(),
 })
 
 const CancelOrderBody = z.object({
@@ -28,7 +35,7 @@ export function registerOrderRoutes(router: Router): void {
       json(res, 400, { error: parsed.error.issues[0]?.message ?? 'Invalid input' })
       return
     }
-    const { user_address, type, usdc_amount, rate } = parsed.data
+    const { user_address, type, usdc_amount, rate, payment_methods } = parsed.data
     const orderId = randomUUID()
 
     // Charge fee first — externalId binds the charge to this order ID for idempotency.
@@ -54,8 +61,9 @@ export function registerOrderRoutes(router: Router): void {
         usdc_amount,
         usd_amount:              usdAmount,
         rate,
-        virtual_deposit_address: virtualAddress,
-        service_fee_paid_at:     new Date().toISOString(),
+        virtual_deposit_address:  virtualAddress,
+        service_fee_paid_at:      new Date().toISOString(),
+        seller_payment_methods:   payment_methods ?? null,
       })
       .select()
       .single()

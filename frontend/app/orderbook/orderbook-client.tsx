@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAccount } from 'wagmi'
 import { createClient, type Order } from '@/lib/supabase'
@@ -19,11 +19,21 @@ export function OrderBookClient({ initialOrders }: { initialOrders: Order[] }) {
   const [noPayMethod, setNoPayMethod] = useState(false)
   const { address } = useAccount()
   const router      = useRouter()
-  const supabase    = createClient()
+  // Stable client — createClient() must not be called on every render or the
+  // Realtime subscription is torn down and re-created constantly.
+  const supabase    = useMemo(() => createClient(), [])
 
-  // Keep state in sync when server re-renders (after router.refresh())
+  // Merge server orders with any locally-injected ones so a router.refresh() race
+  // doesn't erase an order that was just created but hasn't propagated to the server
+  // query yet.
   useEffect(() => {
-    setOrders(initialOrders)
+    setOrders((prev) => {
+      const serverIds = new Set(initialOrders.map((o) => o.id))
+      const extra = prev.filter((o) => !serverIds.has(o.id))
+      return [...initialOrders, ...extra].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )
+    })
   }, [initialOrders])
 
   // Supabase Realtime — all order changes, filtered client-side to avoid ENUM matching issues

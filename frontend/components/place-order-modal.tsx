@@ -20,13 +20,14 @@ interface Props {
 export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
   const { address } = useAccount()
   const { data: walletClient } = useWalletClient()
-  const [type,           setType]           = useState<OrderType>('sell')
-  const [usdcAmount,     setUsdcAmount]     = useState('')
-  const [rate,           setRate]           = useState('1.00')
-  const [error,          setError]          = useState<string | null>(null)
-  const [submitting,     setSubmitting]     = useState(false)
-  const [placed,         setPlaced]         = useState(false)
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+  const [type,            setType]            = useState<OrderType>('sell')
+  const [usdcAmount,      setUsdcAmount]      = useState('')
+  const [rate,            setRate]            = useState('1.00')
+  const [error,           setError]           = useState<string | null>(null)
+  const [submitting,      setSubmitting]      = useState(false)
+  const [placed,          setPlaced]          = useState(false)
+  const [paymentMethods,  setPaymentMethods]  = useState<PaymentMethod[]>([])
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
 
   const { data: balanceRaw } = Hooks.token.useGetBalance({
     account: address,
@@ -51,7 +52,10 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
     void fetch(`/api/users/me?address=${address}`)
       .then((r) => r.json())
       .then((d: { payment_methods?: PaymentMethod[] }) => {
-        setPaymentMethods(d.payment_methods ?? [])
+        const methods = d.payment_methods ?? []
+        setPaymentMethods(methods)
+        // Select all by default
+        setSelectedIndices(new Set(methods.map((_, i) => i)))
       })
       .catch(() => {})
   }, [address, open])
@@ -96,14 +100,17 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
         })],
         polyfill: false,
       })
+      const selectedMethods = paymentMethods.filter((_, i) => selectedIndices.has(i))
+
       const res = await mppx.fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_address: address,
+          user_address:    address,
           type,
-          usdc_amount:  usdc,
-          rate:         rateNum,
+          usdc_amount:     usdc,
+          rate:            rateNum,
+          payment_methods: type === 'sell' ? selectedMethods : undefined,
         }),
       })
       const data = await res.json() as { id?: string; error?: string }
@@ -202,20 +209,62 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
             </div>
           </label>
 
-          {/* Payment methods (SELL orders) */}
+          {/* Payment methods (SELL orders) — select which ones to attach to this order */}
           {type === 'sell' && (
             <div className="space-y-1.5">
-              <span className="font-mono text-[10px] text-dim uppercase tracking-widest">
-                Your payment methods <span className="text-dim/50 normal-case">(how buyers pay you)</span>
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[10px] text-dim uppercase tracking-widest">
+                  Payment methods <span className="text-dim/50 normal-case">(how buyers pay you)</span>
+                </span>
+                {paymentMethods.length > 0 && (
+                  <Link
+                    href="/account"
+                    onClick={onClose}
+                    className="font-mono text-[10px] text-dim/40 hover:text-accent transition-colors"
+                  >
+                    edit →
+                  </Link>
+                )}
+              </div>
               {paymentMethods.length > 0 ? (
                 <div className="flex flex-col gap-1">
-                  {paymentMethods.map((m, i) => (
-                    <div key={i} className="flex items-center justify-between px-3 py-2 bg-canvas rounded-lg border border-white/[0.07]">
-                      <span className="font-mono text-[10px] text-dim uppercase tracking-widest">{m.type}</span>
-                      <span className="font-mono text-xs text-ink/70">{m.value}</span>
-                    </div>
-                  ))}
+                  {paymentMethods.map((m, i) => {
+                    const checked = selectedIndices.has(i)
+                    return (
+                      <label
+                        key={i}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                          checked
+                            ? 'bg-accent/5 border-accent/25'
+                            : 'bg-canvas border-white/[0.07] opacity-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setSelectedIndices((prev) => {
+                              const next = new Set(prev)
+                              if (next.has(i)) next.delete(i)
+                              else next.add(i)
+                              return next
+                            })
+                          }}
+                          className="accent-[var(--accent)] w-3 h-3 shrink-0"
+                        />
+                        <span className="font-mono text-[10px] text-dim uppercase tracking-widest shrink-0 w-16">{m.type}</span>
+                        <span className="font-mono text-xs text-ink/80 flex-1 truncate">{m.value}</span>
+                        {m.label !== m.type && m.label !== m.value && (
+                          <span className="font-mono text-[10px] text-dim/40 shrink-0">({m.label})</span>
+                        )}
+                      </label>
+                    )
+                  })}
+                  {selectedIndices.size === 0 && (
+                    <p className="font-mono text-[10px] text-caution/70 px-1">
+                      Select at least one method so buyers know how to pay you.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center justify-between px-3 py-2.5 bg-caution/5 rounded-lg border border-caution/20">

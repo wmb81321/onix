@@ -43,6 +43,15 @@ export const TradeRowSchema = z.object({
 }).passthrough()
 export type TradeRow = z.infer<typeof TradeRowSchema>
 
+// ── Payment method (shared) ───────────────────────────────────────────────────
+
+const PaymentMethodSchema = z.object({
+  type:  z.string(),
+  label: z.string(),
+  value: z.string(),
+})
+export type PaymentMethod = z.infer<typeof PaymentMethodSchema>
+
 // ── Order ────────────────────────────────────────────────────────────────────
 
 export const OrderStatusSchema = z.enum(['open', 'matched', 'cancelled', 'expired'])
@@ -65,17 +74,12 @@ export const OrderRowSchema = z.object({
   virtual_deposit_address: z.string().nullable().optional(),
   service_fee_paid_at:     z.string().nullable().optional(),
   service_fee_tx_hash:     z.string().nullable().optional(),
+  // Migration 008 — seller payment methods snapshotted at order creation
+  seller_payment_methods: z.array(PaymentMethodSchema).nullable().optional(),
 }).passthrough()
 export type OrderRow = z.infer<typeof OrderRowSchema>
 
 // ── User ─────────────────────────────────────────────────────────────────────
-
-const PaymentMethodSchema = z.object({
-  type:  z.string(),
-  label: z.string(),
-  value: z.string(),
-})
-export type PaymentMethod = z.infer<typeof PaymentMethodSchema>
 
 export const UserRowSchema = z.object({
   address:         z.string(),

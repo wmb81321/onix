@@ -12,13 +12,17 @@ export async function GET(req: NextRequest) {
 
   const db = createServerClient()
 
+  // seller_payment_methods is private — only revealed via the trade page after matching.
+  // All public order queries explicitly exclude it.
+  const PUBLIC_COLS = 'id, user_address, type, usdc_amount, usd_amount, rate, status, expires_at, created_at, virtual_deposit_address, service_fee_paid_at, service_fee_tx_hash'
+
   if (id) {
-    const { data, error } = await db.from('orders').select('*').eq('id', id).single()
+    const { data, error } = await db.from('orders').select(PUBLIC_COLS).eq('id', id).single()
     if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json(data)
   }
 
-  let query = db.from('orders').select('*').eq('status', status).order('created_at', { ascending: false })
+  let query = db.from('orders').select(PUBLIC_COLS).eq('status', status).order('created_at', { ascending: false })
   if (type && type !== 'all') query = query.eq('type', type as OrderType)
   const { data, error } = await query.limit(100)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
