@@ -28,7 +28,7 @@ export function BalanceDisplay({ className }: { className?: string }) {
 
   if (!address) return null
 
-  const balance = data !== undefined
+  const balance = (data != null)
     ? Number(formatUnits(data as bigint, 6)).toFixed(2)
     : null
 

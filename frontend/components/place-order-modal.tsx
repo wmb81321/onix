@@ -27,9 +27,9 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
   const { data: balanceRaw } = Hooks.token.useGetBalance({
     account: address,
     token:   PATHUSDC,
-    query:   { enabled: !!address },
+    query:   { enabled: !!address, refetchInterval: 10_000 },
   })
-  const balanceUsdc = balanceRaw !== undefined
+  const balanceUsdc = (balanceRaw != null)
     ? Number(formatUnits(balanceRaw as bigint, 6))
     : null
 

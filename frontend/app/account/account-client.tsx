@@ -25,9 +25,9 @@ export function AccountClient() {
   const { data: balanceRaw, refetch: refetchBalance } = Hooks.token.useGetBalance({
     account: address,
     token:   PATHUSDC,
-    query:   { enabled: !!address },
+    query:   { enabled: !!address, refetchInterval: 10_000 },
   })
-  const balance = balanceRaw !== undefined
+  const balance = (balanceRaw != null)
     ? Number(formatUnits(balanceRaw as bigint, 6)).toFixed(2)
     : null
 
