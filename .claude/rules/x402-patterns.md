@@ -4,21 +4,32 @@ This project uses the **`mppx` library** for HTTP 402 / MPP session middleware. 
 
 ## Library Choice
 
-- **Use `mppx`** — not raw `@x402/axios`. `mppx` is the Tempo-native MPP session library and provides Express / Next.js / Hono middleware out of the box.
-- Construct the `Mppx` instance once at module load and reuse it across requests.
+- **Use `mppx` v0.6.8+ (`mppx/server`)** — not raw `@x402/axios`. `mppx` is the Tempo-native MPP library and provides node-listener helpers for our plain `http` server.
+- Construct the `Mppx` instance once at module load (`agent/src/lib/mppx.ts`) and reuse it across requests.
 
-## Server Side — Session Middleware
+## Server Side — Charge Helper
 
-- **Use `mppx.session({ amount, unitType })`** to gate the settlement endpoint. A session opens once, then off-chain EIP-712 vouchers settle subsequent calls within the channel — zero on-chain latency after open.
-- **Use `mppx.oneTime({ amount })`** for genuinely single-shot charges that don't benefit from session reuse.
-- Session preferred for the trade settlement flow (multi-step: fee → SPT → release → rate).
+- **Use `mppx['tempo/charge']({ amount, externalId })`** inside `POST /trades/:id/settle`. The charge writes the 402 challenge to the response if the fee has not yet been paid, and returns a 200-class result once the payment lands. The trade ID makes the perfect `externalId` for idempotency.
+- The settle endpoint marks `payment_sent` (with `method='x402'`); it does **not** release USDC. USDC release still requires the seller to call `POST /trades/:id/confirm-payment`. This is intentional — the mppx fee proves the agent paid, not that the fiat actually arrived.
 
 ```ts
-import { Mppx } from 'mppx'
-import { tempo } from 'mppx/methods'
+import { Mppx, tempo } from 'mppx/server'
+import { privateKeyToAccount } from 'viem/accounts'
 
-const mppx = Mppx.create({ methods: [tempo({ account: agentKey })] })
-export const POST = mppx.session({ amount: '0.1', unitType: 'settlement' })(handler)
+const mppx = Mppx.create({
+  secretKey: ENV.MPP_SECRET_KEY,
+  methods: [tempo({
+    account:   privateKeyToAccount(ENV.AGENT_ACCESS_KEY as `0x${string}`),
+    currency:  ENV.TEMPO_PATHUSDC_ADDRESS as `0x${string}`,
+    recipient: ENV.AGENT_ACCESS_KEY_ADDRESS as `0x${string}`,
+  })],
+})
+
+const result = await Mppx.toNodeListener(
+  mppx['tempo/charge']({ amount: '0.1', externalId: tradeId })
+)(nodeReq, nodeRes)
+// 402 → challenge written, return early
+// 200 → fee received, call markPaymentSent(tradeId, 'x402', tradeId)
 ```
 
 ## Client Side — Mppx.create
@@ -39,13 +50,15 @@ const mppx = Mppx.create({
 
 ## Idempotency
 
-- **Always include the `payment-identifier` extension** on every charge — the trade ID makes a perfect identifier. Without it, retries can double-charge.
+- **Always pass `externalId: tradeId`** on every charge — without it, retries can double-charge. mppx uses the externalId to deduplicate.
 - The same trade ID on two charge attempts must converge to a single settled charge.
+- `markPaymentSent` is idempotent at the state level: if the trade is already past `deposited` it short-circuits without writing again. Combined with the externalId dedup, the settle endpoint is safe to retry.
 
 ## Service Fee Timing
 
-- **The 0.1 USDC service fee is charged BEFORE the virtual deposit address is issued to the seller.** A failed fee payment short-circuits the trade — no address, no further state transitions, the trade stays `created`.
+- **The 0.1 USDC service fee is charged when the agent (or an autonomous buyer) calls `POST /trades/:id/settle`, AFTER the seller has deposited.** The settle endpoint enforces `trade.status === 'deposited'` before invoking mppx — calling it earlier returns 409.
 - Source the amount from `CHARGE_AMOUNT_USDC` env — never hardcode in source.
+- The fee is fully separate from the buyer's USD payment to the seller. mppx pays the platform; the buyer pays the seller off-platform.
 
 ## Error Handling
 

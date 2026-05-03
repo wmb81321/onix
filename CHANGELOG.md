@@ -2,44 +2,79 @@
 
 ## [Unreleased]
 
+### Docs
+
+- `CLAUDE.md` — full v2.0.0 rewrite: build status table, folder structure, stack, state machine, flow narrative, API surface, hard rules all aligned to direct-counterparty payment model.
+- `CLAUDE.local.md` — refreshed to v2.0.0; removed Stripe webhook relay docs; added explicit "known stale items / cleanup queue" so the next pass has a clear backlog.
+- `.claude/rules/stripe-integration.md` — replaced with a brief v2.0 deprecation note pointing at `flowManual.ts`.
+- `.claude/rules/testing-practices.md` — Stripe-specific test rules removed; new section for the manual flow's seller-confirmation invariant and the unchanged idempotency rules.
+- `.claude/rules/coding-style.md` — `flows/` example updated from `flowA.ts/flowB.ts` to `flowManual.ts`; validation rule no longer references Stripe webhooks.
+- `.claude/rules/x402-patterns.md` — clarified that the settle endpoint marks `payment_sent` only (no longer "drives full settlement"); removed stale "fee → SPT → release" wording.
+- `.claude/rules/tempo-patterns.md` — left intact (still accurate for v2.0).
+
 ## [2.0.0] — 2026-05-02
 
 ### Changed — Stripe removed, direct counterparty payments
 
-- **Removed Stripe entirely** as the fiat payment rail (Connect, PaymentElement, Stripe Link, Global Payouts, webhooks)
-- **New trade flow**: `created → deposited → payment_sent → payment_confirmed → released → complete`
-- Counterparties now pay each other directly (Zelle, Venmo, bank transfer, wire, etc.)
-- Seller adds payment methods on `/account`; buyer sees them on the trade page
-- Buyer marks payment sent with method + reference number + optional proof URL
-- Seller confirms receipt → agent releases USDC on-chain (unchanged Tempo path)
+- **Removed Stripe entirely** as the fiat payment rail (Connect, PaymentElement, Stripe Link, Global Payouts, webhooks).
+- **New trade state machine**: `created → deposited → payment_sent → payment_confirmed → released → complete` (with `disputed` added alongside `deposit_timeout` / `refunded` as failure modes).
+- Counterparties now pay each other directly (Zelle, Venmo, bank transfer, wire, etc.).
+- Seller adds payment methods on `/account`; buyer sees them on the trade page.
+- Buyer marks payment sent with method + reference number + optional proof URL.
+- Seller confirms receipt → agent releases USDC on-chain (unchanged Tempo signing path).
+- Trust model: the seller's confirmation is the new release trigger, replacing Stripe's signed webhook. Ratings are the long-term reputation feedback loop.
 
 ### Added
 
-- `supabase/migrations/006_manual_payment.sql` — new trade statuses, payment tracking columns, `users.payment_methods`
-- `agent/src/flows/flowManual.ts` — `markPaymentSent`, `confirmPayment` replacing Stripe flow
-- `POST /trades/:id/payment-sent` — buyer marks fiat sent (Bearer auth)
-- `POST /trades/:id/confirm-payment` — seller confirms receipt, triggers USDC release (Bearer auth)
-- `POST /api/users/payment-methods` — save/update per-user payment methods
-- `PaymentSentForm` component — method selector + reference + optional proof URL
-- `ConfirmPaymentPanel` component — seller view with buyer's payment details + confirm button
-- `PaymentMethodsEditor` component — account page: list/add/remove payment methods
+- `supabase/migrations/006_manual_payment.sql` — new trade statuses (`payment_sent`, `payment_confirmed`, `disputed`); `trades.payment_method`, `payment_reference`, `payment_proof_url`, `payment_sent_at`, `payment_confirmed_at`; `users.payment_methods` jsonb (default `[]`).
+- `agent/src/flows/flowManual.ts` — `markPaymentSent()` and `confirmPayment()`. `confirmPayment` enforces `confirmerAddress === trade.seller_address` before any state mutation or on-chain call.
+- `POST /trades/:id/payment-sent` (Bearer auth) — buyer marks fiat sent.
+- `POST /trades/:id/confirm-payment` (Bearer auth) — seller confirms receipt; writes `payment_confirmed` then `released` to Supabase, then transfers USDC on-chain, then writes `complete`.
+- `POST /api/users/payment-methods` — save/replace per-user payment methods array (max 10).
+- `PaymentSentForm` component — method selector (Zelle / Venmo / CashApp / Bank Transfer / Wire / Other) + reference + optional proof URL.
+- `ConfirmPaymentPanel` component — seller view with buyer's payment details + confirm button that calls the agent.
+- `PaymentMethodsEditor` component — `/account` UI to list/add/remove payment methods (Zelle / Venmo / CashApp / Bank Transfer / Wire / PayPal / Other).
+- MCP server v2.0.0 — `mark_payment_sent` and `confirm_payment` tools; `settle_trade` now documents that it marks `payment_sent` and still requires `confirm_payment` to release USDC.
+- `agent/src/index.ts` — version bumped to `2.0.0` in the `/health` payload; route log lines now print `payment-sent` / `confirm-payment`.
 
 ### Kept
 
-- `POST /trades/:id/settle` (public, mppx x402) — agent-native path: pay 0.1 USDC fee → mark payment_sent
-- mppx service fee infrastructure (MPP_SECRET_KEY, CHARGE_AMOUNT_USDC, mppx.ts)
-- Tempo Virtual Addresses, deposit monitor, on-chain USDC release (unchanged)
-- FACILITATOR_URL proxy, AGENT_API_KEY Bearer auth (unchanged)
+- `POST /trades/:id/settle` (public, mppx x402) — agent-native path: pay 0.1 USDC fee → mark `payment_sent` with `method='x402'`. Releasing USDC still requires the seller to call `/confirm-payment`.
+- mppx service fee infrastructure (`MPP_SECRET_KEY`, `CHARGE_AMOUNT_USDC`, `agent/src/lib/mppx.ts`).
+- Tempo Virtual Addresses, deposit monitor, on-chain USDC release (unchanged).
+- `FACILITATOR_URL` proxy and `AGENT_API_KEY` Bearer auth on all non-public agent routes.
+- Ratings (`POST /api/trades/[id]/rate`).
 
 ### Removed
 
-- `agent/src/stripe/` — Stripe client, payouts, webhook handler
-- `agent/src/lib/link.ts` — Stripe Link CLI wrapper
-- `agent/src/routes/webhooks.ts` — Stripe webhook route
-- `agent/src/flows/flowA.ts` — Stripe-based settlement flow
-- Stripe Connect onboarding, SetupIntent card save, off-session charges
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `LINK_CLI_AUTH` env vars
-- MCP tool `initiate_payment` → replaced by `mark_payment_sent` + `confirm_payment`
+- `agent/src/stripe/` — `client.ts`, `payouts.ts`, `webhook.ts` deleted.
+- `agent/src/lib/link.ts` — Stripe Link CLI wrapper deleted.
+- `agent/src/routes/webhooks.ts` — Stripe webhook route deleted; agent no longer mounts a `/webhooks/stripe` endpoint.
+- `agent/src/flows/flowA.ts` — Stripe-based settlement orchestrator deleted.
+- `stripe` npm dependency removed from `agent/package.json`.
+- Stripe Connect onboarding, SetupIntent card save, off-session charges.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_API_VERSION`, `LINK_CLI_AUTH`, `LINK_DEFAULT_PM_ID` env vars (no longer read by anything).
+- MCP tool `initiate_payment` → replaced by `mark_payment_sent` + `confirm_payment`.
+
+### Stubbed (return `410 Gone` so old clients fail loudly)
+
+- `POST /api/stripe/account`
+- `GET  /api/stripe/account-status`
+- `GET  /api/stripe/account/refresh`
+- `POST /api/stripe/setup-intent`
+- `POST /api/stripe/payment-method/save`
+- `POST /api/users/link-pm` and `DELETE /api/users/link-pm`
+- `POST /api/trades/[id]/link-pay`
+- `POST /api/trades/[id]/auto-pay`
+- `POST /api/trades/[id]/payment-intent`
+
+Old Stripe React components (`BuyerPaymentForm`, `LinkPayButton`, `LinkPmSetup`, `SaveCardForm`, `StripeConnectButton`) are stubbed with `export {}` to keep imports compiling while flagging that the components are gone.
+
+### Deployments
+
+- **Railway agent v2.0.0** live at `https://convexo-p2p-agent-production.up.railway.app`.
+- **Vercel frontend** deploying from commit `b1b8657`.
+- Stripe webhook endpoint `we_1TSOSkIeMhBdGlf7tM8ekyQI` is no longer routed to anything — safe to delete from the Stripe dashboard.
 
 ## [1.4.0] — 2026-05-01
 ### Phase 8 — MCP server, /agents page, public orders GET, settle_trade tool

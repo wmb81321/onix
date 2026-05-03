@@ -1,6 +1,6 @@
 # Convexo P2P — Coding Style Rules
 
-These rules apply to all TypeScript code in `agent/`, `tee/`, `mcp-servers/`, and `frontend/`. Solidity rules live in `solidity-conventions.md`.
+These rules apply to all TypeScript code in `agent/`, `mcp-server/`, `scripts/`, and `frontend/`. There is no Solidity in this project (Tempo handles escrow via Virtual Addresses), so the previously-referenced `solidity-conventions.md` does not exist.
 
 ## Type Safety
 
@@ -21,19 +21,19 @@ These rules apply to all TypeScript code in `agent/`, `tee/`, `mcp-servers/`, an
 
 ## Validation
 
-- **Use `zod` for all external input validation.** Inbound Stripe webhooks, Supabase rows read into the agent, user-submitted form data, MCP tool responses — all parsed through a `zod` schema before use.
-- **Never trust JSON shapes.** `parse` not `safeParse` only at trust boundaries you fully control; everywhere else, `safeParse` and handle the failure branch.
+- **Use `zod` for all external input validation.** Supabase rows read into the agent, user-submitted form data via the trade routes (`PaymentSentBody`, `ConfirmPaymentBody`, `CreateTradeBody`), MCP tool responses, and any inbound webhook payload — all parsed through a `zod` schema before use.
+- **Never trust JSON shapes.** Use `parse` only at trust boundaries you fully control (e.g. validating env at startup); everywhere else, `safeParse` and handle the failure branch with a 4xx response.
 
 ## Module Style
 
-- **Named exports only in agent runtime code.** No `export default` in `agent/src/`, `tee/`, or `mcp-servers/`. Default exports are tolerated only in Next.js page/layout files where the framework requires them.
-- **One responsibility per file in `agent/src/flows/`.** `flowA.ts` does Flow A. `flowB.ts` does Flow B. They do not import from each other. Shared logic moves to `agent/src/state/` or `agent/src/lib/`.
+- **Named exports only in agent runtime code.** No `export default` in `agent/src/` or `mcp-server/src/`. Default exports are tolerated only in Next.js page/layout files where the framework requires them.
+- **One responsibility per file in `agent/src/flows/`.** `flowManual.ts` owns the manual peer-to-peer settlement path. If a future payment rail is added, give it its own file (e.g. `flowB.ts`) — never cross-import between flows. Shared logic belongs in `agent/src/lib/`.
 
 ## Naming
 
-- **Files:** `kebab-case.ts` (e.g. `webhook-verifier.ts`, `flow-a.ts`).
+- **Files:** `kebab-case.ts` for new files (e.g. `payment-sent-form.tsx`, `confirm-payment-panel.tsx`). The legacy `flowManual.ts` / `flowA.ts` style is retained on existing flow files for clarity inside `agent/src/flows/` and is not a target for renaming.
 - **Classes and types:** `PascalCase` (e.g. `class TradeStateMachine`, `type TradeRow`).
-- **Functions and variables:** `camelCase` (e.g. `verifyWebhook`, `tradeHash`).
+- **Functions and variables:** `camelCase` (e.g. `markPaymentSent`, `confirmPayment`).
 - **Constants:** `SCREAMING_SNAKE_CASE` only for true compile-time constants from the environment surface.
 
 ## Imports
