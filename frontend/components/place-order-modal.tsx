@@ -76,7 +76,11 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
       const mppx = MppxClient.create({
         methods: [mppxTempo.charge({
           getClient: () => walletClient as never,
-          mode: 'pull', // Tempo passkey wallet signs tx; push (wallet_sendCalls) is not supported
+          // Tempo passkey wallets self-sponsor gas — pull mode receives a tx
+          // with feePayerSignature already set, which the server rejects.
+          // Push mode lets wallet_sendCalls handle the full broadcast and
+          // we only verify the on-chain hash.
+          mode: 'push',
         })],
         polyfill: false,
       })
