@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { PaymentMethodsEditor } from '@/components/payment-methods-editor'
 import type { Order, Trade } from '@/lib/supabase'
 
-import { useWalletBalances } from '@/hooks/use-wallet-balances'
+import { usePathUsdBalance } from '@/hooks/use-wallet-balances'
 
 type PaymentMethod = { type: string; label: string; value: string }
 
@@ -19,7 +19,7 @@ export function AccountClient() {
   const [copied,         setCopied]         = useState(false)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
 
-  const { data: allBalances, refetch: refetchBalances, isLoading: balancesLoading } = useWalletBalances()
+  const { formatted: pathUsdFormatted, isLoading: balancesLoading, isError: balancesError, refetch: refetchBalances } = usePathUsdBalance()
 
   const { mutate: fund, isPending: funding } = Hooks.faucet.useFundSync({
     mutation: {
@@ -88,45 +88,28 @@ export function AccountClient() {
           </div>
         </div>
 
-        {(balancesLoading || !allBalances || allBalances.length === 0)
-          ? (
-            <div className="flex items-center justify-between px-4 py-3.5">
-              <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Balance</span>
-              <div className="flex items-center gap-3">
-                <span className="text-dim/40 font-mono text-sm">···</span>
-                <button
-                  onClick={() => address && fund({ account: address })}
-                  disabled={funding || !address}
-                  className="font-mono text-[10px] text-accent/60 hover:text-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Get test tokens from Tempo faucet"
-                >
-                  {funding ? 'funding…' : '+ testnet'}
-                </button>
-              </div>
-            </div>
-          )
-          : allBalances.map((token, i) => (
-            <div key={token.address} className="flex items-center justify-between px-4 py-3.5">
-              <span className="font-mono text-[10px] text-dim uppercase tracking-widest">{token.symbol} Balance</span>
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-sm text-ink">
-                  <span className="text-ink/70">{token.formatted}</span>{' '}
-                  <span className="text-dim/50">{token.symbol}</span>
+        <div className="flex items-center justify-between px-4 py-3.5">
+          <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Balance</span>
+          <div className="flex items-center gap-3">
+            {balancesLoading
+              ? <span className="text-dim/40 font-mono text-sm">···</span>
+              : balancesError || pathUsdFormatted === null
+              ? <span className="text-danger/60 font-mono text-sm">—</span>
+              : <span className="font-mono text-sm text-ink">
+                  <span className="text-ink/70">{pathUsdFormatted}</span>{' '}
+                  <span className="text-dim/50">pathUSD</span>
                 </span>
-                {i === 0 && (
-                  <button
-                    onClick={() => address && fund({ account: address })}
-                    disabled={funding || !address}
-                    className="font-mono text-[10px] text-accent/60 hover:text-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="Get test tokens from Tempo faucet"
-                  >
-                    {funding ? 'funding…' : '+ testnet'}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))
-        }
+            }
+            <button
+              onClick={() => address && fund({ account: address })}
+              disabled={funding || !address}
+              className="font-mono text-[10px] text-accent/60 hover:text-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Get test tokens from Tempo faucet"
+            >
+              {funding ? 'funding…' : '+ testnet'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Payment methods (for receiving USD from buyers) */}

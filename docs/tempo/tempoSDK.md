@@ -503,3 +503,4 @@ export default defineConfig({
 Have questions or building something cool with the Accounts SDK?
 
 Join the Telegram group to chat with the team and other devs: [@mpp\_devs](https://t.me/mpp_devs)
+

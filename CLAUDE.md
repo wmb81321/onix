@@ -4,9 +4,9 @@ Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinate
 
 ---
 
-## Current Build Status (2026-05-03) — v2.1.0
+## Current Build Status (2026-05-03) — v2.1.1
 
-**x402 fee now charged at order creation. Virtual deposit address is per-order. Frontend on Vercel, agent on Railway.**
+**x402 fee at order creation. No global Bearer gate — address-in-body = identity. Balance shows pathUSD via single Hooks.token.useGetBalance call.**
 
 | Layer | Status | Notes |
 |---|---|---|
@@ -14,14 +14,14 @@ Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinate
 | Migration 007 | ✓ Applied | `orders.virtual_deposit_address` (unique), `service_fee_paid_at`, `service_fee_tx_hash`; legacy open orders expired |
 | Tempo Virtual Address | ✓ Registered | `AGENT_MASTER_ID=0x3ead6d3d`, on-chain Moderato testnet |
 | Agent wallet (EOA) | ✓ Funded | `0x6772787e16a7ea4c5307cc739cc5116b4b26ffc0` |
-| Railway agent | ⚠ Pending deploy | v2.1.0 — git push to main deploys |
+| Railway agent | ✓ Live | v2.1.1 — no global Bearer gate; address-in-body auth |
 | Railway deploy method | ✓ Git-push | Repo: `wmb81321/onix`, root dir: `/agent`, builder: Dockerfile |
-| Vercel frontend | ⚠ Pending deploy | v2.1.0 — mppx/client integrated in PlaceOrderModal |
-| `POST /orders` (agent) | ✓ Code ready | Public — mppx x402 gate; creates order + VA; fee forfeited on cancel |
-| `POST /orders/:id/cancel` (agent) | ✓ Code ready | Bearer auth, owner-only, DB-only cancel |
+| Vercel frontend | ✓ Live | v2.1.1 — balance fix (single pathUSD hook) |
+| `POST /orders` (agent) | ✓ Live | Public — mppx x402 gate; creates order + VA; fee forfeited on cancel |
+| `POST /orders/:id/cancel` (agent) | ✓ Live | Address-verified (requester must be order creator), DB-only cancel |
 | `flowManual.ts` | ✓ Live | `markPaymentSent()` + `confirmPayment()` |
-| `POST /trades/:id/payment-sent` | ✓ Live | Buyer marks fiat sent (Bearer auth) |
-| `POST /trades/:id/confirm-payment` | ✓ Live | Seller confirms receipt → USDC release (Bearer auth) |
+| `POST /trades/:id/payment-sent` | ✓ Live | Buyer marks fiat sent; `buyer_address` in body verified against trade |
+| `POST /trades/:id/confirm-payment` | ✓ Live | Seller confirms receipt; `seller_address` verified → USDC release |
 | `POST /trades/:id/settle` | ✓ Code ready | Deprecated — now Bearer-auth only, no fee charged |
 | `PaymentSentForm` component | ✓ Live | Buyer UI: method selector + reference + optional proof URL |
 | `ConfirmPaymentPanel` component | ✓ Live | Seller UI: shows buyer's payment details + confirm button |
@@ -78,7 +78,7 @@ The **agent** needs a persistent long-running process (deposit monitor, on-chain
 
 | Layer | Tech | Key Constraint |
 |---|---|---|
-| User wallet | Tempo Wallet (`tempoWallet()` wagmi connector) | Import `tempoModerato` from `viem/chains`, `tempoWallet` from `wagmi/tempo` |
+| User wallet | Tempo Wallet (`tempoWallet()` wagmi connector) | Import `tempoModerato` from `viem/chains`, `tempoWallet` from `wagmi/connectors` |
 | Deposits | TIP-20 Virtual Addresses | `VirtualAddress.from({ masterId, userTag: tradeId })` — userTag never reused |
 | Agent wallet | Tempo master wallet + access keys | `AGENT_MASTER_ID` immutable; access keys carry `maxSpend` + `expiry` |
 | Service fee | MPP session via `mppx` | `mppx['tempo/charge']({ amount: '0.1', externalId: tradeId })` |
@@ -94,7 +94,7 @@ The **agent** needs a persistent long-running process (deposit monitor, on-chain
 
 ---
 
-## Database Schema (6 migrations)
+## Database Schema (7 migrations)
 
 | Migration | What it adds |
 |---|---|
@@ -115,10 +115,10 @@ Legacy Stripe columns (`stripe_account`, `link_payment_method_id`, `stripe_custo
 created → deposited → payment_sent → payment_confirmed → released → complete
 ```
 
-**Agent entry points:**
-- `POST /trades/:id/payment-sent` (Bearer auth) → `markPaymentSent()` → `payment_sent`
-- `POST /trades/:id/confirm-payment` (Bearer auth) → `confirmPayment()` → `payment_confirmed` → on-chain `transferUsdc` → `released` → `complete`
-- `POST /trades/:id/settle` (public, mppx 0.1 USDC) → `markPaymentSent()` with `method='x402'`, then still requires `confirm-payment` to release USDC
+**Agent entry points (no global Bearer gate — address in body IS identity):**
+- `POST /trades/:id/payment-sent` (`buyer_address` in body verified against trade row) → `markPaymentSent()` → `payment_sent`
+- `POST /trades/:id/confirm-payment` (`seller_address` in body verified against trade row) → `confirmPayment()` → `payment_confirmed` → on-chain `transferUsdc` → `released` → `complete`
+- `POST /trades/:id/settle` (Bearer auth, deprecated) → `markPaymentSent()` with `method='x402'`, then still requires `confirm-payment` to release USDC
 
 **Failure states:** `deposit_timeout` (30 min), `disputed`, `refunded`
 
@@ -161,10 +161,10 @@ All transitions write Supabase BEFORE the side-effect runs.
 |---|---|---|---|
 | GET | `/health` | public | Health check, returns `{ status: 'ok', version: '2.1.0' }` |
 | POST | `/orders` | **public** (mppx 402) | Pay 0.1 USDC service fee → creates order + derives per-order virtual deposit address |
-| POST | `/orders/:id/cancel` | Bearer | Cancel open order (DB-only; VA persists on-chain; fee forfeited) |
-| POST | `/trades` | Bearer | Create trade + atomically lock the order (reads VA from order row) + start deposit watcher |
-| POST | `/trades/:id/payment-sent` | Bearer | Buyer marks fiat as sent (`payment_method`, `payment_reference`, `payment_proof_url?`) → `payment_sent` |
-| POST | `/trades/:id/confirm-payment` | Bearer | Seller confirms receipt (`seller_address`) → `payment_confirmed` → on-chain release → `complete` |
+| POST | `/orders/:id/cancel` | address-verified | Requester address must match order creator; DB-only cancel; VA persists; fee forfeited |
+| POST | `/trades` | address-verified | Creates trade; buyer address in body matched against order |
+| POST | `/trades/:id/payment-sent` | address-verified | `buyer_address` in body verified against trade; marks fiat sent → `payment_sent` |
+| POST | `/trades/:id/confirm-payment` | address-verified | `seller_address` in body verified against trade; releases USDC → `complete` |
 | POST | `/trades/:id/settle` | Bearer | **Deprecated** — marks `payment_sent` with `method='x402'`, no fee charged. Use `payment-sent` for new integrations. |
 
 ### Frontend proxy (Next.js — server-side, no browser auth needed)
@@ -256,8 +256,8 @@ All transitions write Supabase BEFORE the side-effect runs.
 11. **`CHANGELOG.md` updated after every meaningful change.**
 12. **`Hooks.token.useGetBalance` from `wagmi/tempo`** for TIP-20 balance reads.
 13. **`Hooks.faucet.useFundSync` from `wagmi/tempo`** for testnet faucet.
-14. **`POST /orders` is public** — mppx 0.1 USDC payment IS the auth. The fee is charged once at order creation and forfeited on cancel or expiry. `POST /trades/:id/settle` is now **Bearer-auth only** (deprecated; no fee charged there anymore).
-15. **`POST /orders/:id/cancel`, `POST /trades/:id/payment-sent`, and `POST /trades/:id/confirm-payment` require Bearer auth** (`AGENT_API_KEY`) — always.
+14. **`POST /orders` is public** — mppx 0.1 USDC payment IS the auth. The fee is charged once at order creation and forfeited on cancel or expiry. `POST /trades/:id/settle` is **Bearer-auth only** (deprecated; no fee charged there anymore).
+15. **No global Bearer gate on payment endpoints.** `POST /orders/:id/cancel` verifies `requester_address` against `order.creator_address`; `POST /trades/:id/payment-sent` verifies `buyer_address`; `POST /trades/:id/confirm-payment` verifies `seller_address`. Address-in-body IS the identity proof — never re-add a global API key check to these routes.
 15a. **Virtual deposit address is per-order, not per-trade.** `deriveDepositAddress(masterId, orderId)` is called in `POST /orders`; `POST /trades` reads the VA from the order row. Never re-derive from `tradeId`.
 16. **State machine transitions are idempotent.** Re-calling `markPaymentSent` or `confirmPayment` for a trade already past that state must be a no-op, not a duplicate side-effect.
 17. **No new Stripe code.** Stripe is intentionally absent. If a payment rail expansion is needed later, build it as `flowB.ts` next to `flowManual.ts` — do not resurrect `flowA.ts`.

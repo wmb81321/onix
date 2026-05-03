@@ -1,6 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## [2.1.1] — 2026-05-03
+
+### Changed — open auth model + balance fix
+
+- **No global Bearer gate.** All payment endpoints now use address-in-body identity verification instead of `AGENT_API_KEY`. `POST /orders/:id/cancel` checks `requester_address` against `order.creator_address`; `POST /trades/:id/payment-sent` checks `buyer_address`; `POST /trades/:id/confirm-payment` checks `seller_address`. `POST /trades/:id/settle` retains Bearer auth (deprecated endpoint).
+- **Balance hook simplified.** `useWalletBalances` (4-token flatMap) replaced with `usePathUsdBalance` — a single `Hooks.token.useGetBalance` call for pathUSD, identical pattern to `balance-display.tsx`. Error state now surfaces as `—` instead of being silently absorbed into an empty array.
+- `frontend/hooks/use-wallet-balances.ts` — exports `usePathUsdBalance`, `PATHUSDC_ADDRESS`, `PATHUSDC_DECIMALS`. Old `useWalletBalances` export removed.
+- `frontend/app/account/account-client.tsx` — balance section shows three explicit states: `···` (loading), `—` (error), `"X.XX pathUSD"` (success). Faucet button always visible.
 
 ## [2.1.0] — 2026-05-03
 
