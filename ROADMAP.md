@@ -28,21 +28,7 @@ Next focus: Agent API spec refresh, then cleanup pass — clearing the path to m
 | v2.1.3 — Payment methods snapshot | v2.1.3 | Migration 008 (`orders.seller_payment_methods`); PaymentMethodsEditor stale state fix; Realtime subscription stability fix; payment methods shown in Place Order modal |
 | v2.2.0 — Taker fee + mutual cancel + image proof | v2.2.0 | Taker fee (mppx 402 at `POST /trades`); mutual cancellation (`cancel_requested` status, confirm/reject paths, USDC refund); image proof upload (Supabase Storage); migrations 009 + 010 |
 | Phase 9 — Agent API spec | v2.2.0 | `docs/agent-api.md` — full v2.2 endpoint reference; all routes, auth model, schemas, state machine, mppx client setup, full trade walkthrough |
-
----
-
-## Phase 10 — Cleanup pass
-
-Remove accumulated technical debt before mainnet. Do this before agent scripts so the codebase is clean going into testing.
-
-- [ ] Drop legacy Stripe DB columns (migration `011_drop_stripe_columns.sql`): `stripe_account`, `stripe_customer_id`, `stripe_buyer_pm_id`, `stripe_buyer_card_brand`, `stripe_buyer_card_last4`, `stripe_payment_intent_id`, `link_spend_request_id`, `link_payment_method_id`, `stripe_payout_id`, `stripe_account_id`
-- [ ] Regenerate `frontend/lib/database.types.ts` after migration
-- [ ] `rm -rf agent/dist/` and rebuild: `pnpm --filter agent build`
-- [ ] Remove orphaned pages `frontend/app/stripe/return/` and `frontend/app/stripe/payment-return/[id]/`
-- [ ] Remove stale slash commands: `.claude/commands/test-flow-a.md`, `test-flow-b.md`, `auth-stripe-link.md`
-- [ ] Remove stale Railway env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `LINK_CLI_AUTH`, `LINK_DEFAULT_PM_ID`
-- [ ] Update `frontend/components/agents-content.tsx` stale copy (Stripe Link badge, `initiate_payment` tool name)
-- [ ] Rewrite `scripts/buyer-agent.ts` for `/payment-sent` (was stale on removed `/link-pay`)
+| Phase 10 — Cleanup pass | v2.3.0 | Migration 011 (drop 10 Stripe columns); remove `frontend/app/stripe/` pages; remove stale slash commands; fix `buyer-agent.ts` response check + Bearer header; clean `agents-content.tsx` copy |
 
 ---
 

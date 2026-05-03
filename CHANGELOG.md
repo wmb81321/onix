@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.3.0] — 2026-05-03
+
+### Removed
+- **Migration 011** — dropped 10 legacy Stripe columns: `users.(stripe_account, link_payment_method_id, stripe_customer_id, stripe_buyer_pm_id, stripe_buyer_card_brand, stripe_buyer_card_last4)` and `trades.(stripe_payment_intent_id, link_spend_request_id, stripe_payout_id, stripe_account_id)`
+- Orphaned pages `frontend/app/stripe/return/` and `frontend/app/stripe/payment-return/[id]/`
+- Stale slash commands `.claude/commands/test-flow-a.md` and `.claude/commands/auth-stripe-link.md`
+
+### Fixed
+- **`scripts/buyer-agent.ts`** — response shape check was `data.ok` (always `undefined`); fixed to `!res.ok` only. Removed stale `Authorization: Bearer` header (endpoint uses address-in-body auth). Removed `AGENT_API_KEY` env requirement.
+- **`frontend/components/agents-content.tsx`** — updated badge copy to "Moderato testnet" + fee info; phase number corrected for seller-agent.ts
+
+### Updated
+- `frontend/lib/database.types.ts` — removed legacy Stripe column types from `users` and `trades` Row shapes
+
+---
+
 ## [2.2.1] — 2026-05-03
 
 ### Added

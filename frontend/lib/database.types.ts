@@ -10,13 +10,6 @@ export type Database = {
           rating_avg: number
           trade_count: number
           created_at: string
-          // Legacy Stripe columns — kept for existing rows, not used in new flow
-          stripe_account: string | null
-          link_payment_method_id: string | null
-          stripe_customer_id: string | null
-          stripe_buyer_pm_id: string | null
-          stripe_buyer_card_brand: string | null
-          stripe_buyer_card_last4: string | null
         }
         Insert: {
           address: string
@@ -95,11 +88,6 @@ export type Database = {
           // Mutual cancel fields (migration 010)
           cancel_requested_by: string | null
           cancel_requested_from_status: string | null
-          // Legacy Stripe columns
-          stripe_payout_id: string | null
-          stripe_account_id: string | null
-          stripe_payment_intent_id: string | null
-          link_spend_request_id: string | null
           created_at: string
           updated_at: string
         }
@@ -178,9 +166,9 @@ export type Database = {
         | 'cancelled'
         | 'refunding'
         | 'cancel_requested'
-        | 'fee_paid'
-        | 'fiat_sent'
-        | 'stripe_failed'
+        | 'fee_paid'       // legacy — kept for old rows
+        | 'fiat_sent'      // legacy — kept for old rows
+        | 'stripe_failed'  // legacy — kept for old rows
     }
   }
 }

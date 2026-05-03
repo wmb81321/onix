@@ -116,10 +116,10 @@ export function AgentsContent() {
         </p>
         <div className="flex items-center gap-3">
           <span className="font-mono text-[11px] px-2.5 py-1 rounded-full border border-accent/30 bg-accent/[0.08] text-accent">
-            Testnet live
+            Moderato testnet
           </span>
-          <span className="font-mono text-[11px] px-2.5 py-1 rounded-full border border-caution/30 bg-caution/[0.08] text-caution">
-            Manual settlement
+          <span className="font-mono text-[11px] px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.04] text-dim">
+            Maker + taker fee: 0.1 USDC each
           </span>
         </div>
       </section>
@@ -227,7 +227,7 @@ export function AgentsContent() {
         <p className="font-mono text-[12px] text-dim leading-relaxed max-w-xl">
           Seller agents can post orders, monitor for matches, and deposit USDC automatically using
           the same MCP tools.{' '}
-          <span className="text-ink">seller-agent.ts</span> reference implementation coming in Phase 9.
+          <span className="text-ink">seller-agent.ts</span> reference implementation coming in Phase 11.
           Set <span className="text-ink">P2PAI_SELLER_ADDRESS</span> in env to default all sell-side calls.
         </p>
       </section>

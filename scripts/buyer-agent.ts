@@ -10,7 +10,7 @@
  *   created → deposited → payment_sent → payment_confirmed → released → complete
  *
  * Usage:
- *   BUYER_ADDRESS=0x... FRONTEND_URL=https://... AGENT_API_KEY=... \
+ *   BUYER_ADDRESS=0x... FRONTEND_URL=https://... \
  *     tsx scripts/buyer-agent.ts
  *
  * Environment:
@@ -18,7 +18,6 @@
  *   FRONTEND_URL              — base URL of the Next.js frontend (default: http://localhost:3000)
  *   SUPABASE_URL              — Supabase project URL
  *   SUPABASE_SERVICE_ROLE_KEY — service-role key (bypasses RLS for polling)
- *   AGENT_API_KEY             — Bearer token for agent-authenticated routes
  *   PAYMENT_METHOD            — payment method label (default: "bank_transfer")
  *   POLL_INTERVAL_MS          — polling interval in ms (default: 10000)
  */
@@ -35,7 +34,6 @@ const EnvSchema = z.object({
   FRONTEND_URL:              z.string().url().default('http://localhost:3000'),
   SUPABASE_URL:              z.string().url('SUPABASE_URL must be a valid URL'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
-  AGENT_API_KEY:             z.string().min(1, 'AGENT_API_KEY is required'),
   PAYMENT_METHOD:            z.string().default('bank_transfer'),
   POLL_INTERVAL_MS:          z.coerce.number().positive().default(10_000),
 })
@@ -63,7 +61,7 @@ interface TradeRow {
 }
 
 interface PaymentSentResponse {
-  ok: boolean
+  status?: string
   error?: string
 }
 
@@ -103,16 +101,13 @@ async function markPaymentSent(trade: TradeRow): Promise<void> {
 
   const res = await fetch(`${ENV.FRONTEND_URL}/api/trades/${trade.id}/payment-sent`, {
     method:  'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${ENV.AGENT_API_KEY}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body,
   })
 
   const data = await res.json() as PaymentSentResponse
 
-  if (!res.ok || !data.ok) {
+  if (!res.ok) {
     throw new Error(data.error ?? `HTTP ${res.status}`)
   }
 

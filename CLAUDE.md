@@ -6,7 +6,7 @@ p2pai is an agentic P2P crypto-fiat settlement app. An AI Agent coordinates trad
 
 ## Current Build Status (2026-05-03) — v2.2.0
 
-**Taker fee at trade creation. Mutual cancellation with two-party consent and on-chain USDC refund. Image proof upload via Supabase Storage. 10 migrations applied.**
+**Taker fee at trade creation. Mutual cancellation with two-party consent and on-chain USDC refund. Image proof upload via Supabase Storage. 11 migrations applied. Legacy Stripe columns dropped.**
 
 | Layer | Status | Notes |
 |---|---|---|
@@ -15,6 +15,7 @@ p2pai is an agentic P2P crypto-fiat settlement app. An AI Agent coordinates trad
 | Migration 008 | ✓ Applied | `orders.seller_payment_methods` jsonb — payment method snapshot at order creation |
 | Migration 009 | ✓ Applied | `cancelled` and `refunding` added to trade status enum |
 | Migration 010 | ✓ Applied | `cancel_requested` status; `trades.cancel_requested_by`; `trades.cancel_requested_from_status` |
+| Migration 011 | ✓ Applied | Drop legacy Stripe columns from `users` and `trades` (10 columns removed) |
 | Tempo Virtual Address | ✓ Registered | `AGENT_MASTER_ID=0x3ead6d3d`, on-chain Moderato testnet |
 | Agent wallet (EOA) | ✓ Funded | `0x6772787e16a7ea4c5307cc739cc5116b4b26ffc0` |
 | Railway agent | ✓ Live | v2.2.0 — no global Bearer gate; address-in-body auth |
