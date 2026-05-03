@@ -189,36 +189,50 @@ All transitions write Supabase BEFORE the side-effect runs.
 
 ## Skill Trigger Table
 
-| Skill | Activate when... |
-|---|---|
-| `tempo-docs` | Tempo protocol, TIP-20, Virtual Addresses, MPP, Tempo Wallet |
-| `x402` | HTTP 402, `mppx` middleware, MPP session/oneTime, settle endpoint |
-| `supabase` | Supabase RLS, migrations, types regeneration |
-| `viem-integration` / `wagmi` | Frontend chain config, on-chain reads, transfers |
-| `stripe-best-practices` | NOT used in v2.0 (kept as reference only) |
-| `create-payment-credential` | NOT used in v2.0 (kept as reference only) |
-| `privy` | Reference only — not used in MVP |
+| Skill | Install | Activate when... |
+|---|---|---|
+| `tempo-docs` | `npx skills add tempoxyz/docs` | Tempo protocol, TIP-20, Virtual Addresses, Tempo Wallet, wagmi hooks, `wallet_getBalances` |
+| `mppx` | `npx skills add tempoxyz/mpp` | `mppx` library, MPP 402 flows, session vs oneTime, settle endpoint, charge middleware |
+| `x402` | installed | HTTP 402 spec reference — use `mppx` skill for implementation |
+| `supabase` | plugin | Supabase RLS, migrations, types regeneration |
+| `viem-integration` / `wagmi` | plugin | Frontend chain config, on-chain reads, transfers |
+| `stripe-best-practices` | installed | NOT used in v2.0 (kept as reference only) |
+| `create-payment-credential` | installed | NOT used in v2.0 (kept as reference only) |
+| `privy` | installed | Reference only — not used in MVP |
 
 ---
 
 ## MCP + CLI Tooling
 
-| Task | Tool | Prefix |
-|---|---|---|
-| Tempo protocol docs | `tempo` MCP | `mcp__tempo__*` |
-| Third-party lib docs | `context7` MCP | `mcp__plugin_context7_context7__*` |
-| Supabase | `supabase` plugin | `mcp__plugin_supabase_supabase__*` |
-| Browser automation | `playwright` plugin | `mcp__plugin_playwright_playwright__*` |
-| GitHub | `github` plugin | `mcp__github__*` |
-| Vercel | `vercel` plugin | `mcp__plugin_vercel_vercel__*` |
+### MCP Servers (configured in `mcp.json`)
+
+| Task | Server name | Prefix | Source |
+|---|---|---|---|
+| Tempo protocol docs, SDK, source | `tempo` | `mcp__tempo__*` | `https://docs.tempo.xyz/api/mcp` |
+| MPP / mppx spec and docs | `mpp` | `mcp__mpp__*` | `https://mpp.dev/api/mcp` |
+| Third-party lib docs | `context7` | `mcp__plugin_context7_context7__*` | npx `@upstash/context7-mcp` |
+| Supabase | `plugin:supabase` | `mcp__plugin_supabase_supabase__*` | claude.ai plugin |
+| Browser automation | `plugin:playwright` | `mcp__plugin_playwright_playwright__*` | claude.ai plugin |
+| GitHub | `plugin:github` / `github` | `mcp__github__*` | claude.ai plugin / global |
+| Vercel | `plugin:vercel` | `mcp__plugin_vercel_vercel__*` | claude.ai plugin |
+
+### LLM-optimised doc endpoints (no MCP needed)
+
+| Resource | URL |
+|---|---|
+| Tempo docs index | `https://docs.tempo.xyz/llms.txt` |
+| Tempo full docs | `https://docs.tempo.xyz/llms-full.txt` |
+| Any Tempo page as Markdown | append `.md` to page URL |
+| MPP docs index | `https://mpp.dev/llms.txt` |
+| MPP full docs | `https://mpp.dev/llms-full.txt` |
+
+### CLI
 
 | CLI | Auth | Key commands |
 |---|---|---|
 | `tempo` | Logged in — Moderato key expires 2026-05-31 | `tempo wallet fund`, `tempo wallet transfer` |
 | `railway` | Logged in | `git push origin main` deploys; `railway logs` |
 | `cast` | Ready | `cast send`, `cast balance` |
-
-The `stripe` CLI and `npx @stripe/link-cli` are still installed locally but no longer needed by any production code path.
 
 ---
 

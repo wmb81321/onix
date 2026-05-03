@@ -7,6 +7,12 @@
       "skillPath": "skills/create-payment-credential/SKILL.md",
       "computedHash": "9b97c65844cf2d8c6fee42e2c9013415d141616121daade30d8ddc1f03529a7b"
     },
+    "mppx": {
+      "source": "tempoxyz/mpp",
+      "sourceType": "github",
+      "skillPath": "skills/mppx/SKILL.md",
+      "computedHash": "169a6ca5e8824a430f35257384c67f9a5f8621e490df0f43d2a8299c6b6ff6af"
+    },
     "privy": {
       "source": "docs.privy.io",
       "sourceType": "well-known",
@@ -21,7 +27,7 @@
       "source": "tempoxyz/docs",
       "sourceType": "github",
       "skillPath": "SKILL.md",
-      "computedHash": "742f94fe9ebdeae079748a4fb0bffb8aedd2ac3d5e758a9a5f8dc52225bae263"
+      "computedHash": "5efc5e20b440b1d22ed0a7be56c6f236ca553943746498d557cd18592f77cd4e"
     },
     "x402": {
       "source": "docs.x402.org",
