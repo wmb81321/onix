@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.2.0] — 2026-05-03
+
+### Added
+
+- **Taker fee** (`place-order-modal.tsx`, `frontend/app/api/trades/route.ts`): matching an order now requires paying 0.1 USDC via mppx push mode before the trade is created. `POST /api/trades` proxies the 402 challenge back to the browser; the client pays with `Mppx.create` + `mode: 'push'`. `externalId` format: `taker_<buyerAddress>_<orderId>` for idempotent deduplication across retries. Agent's `POST /trades` is now an mppx-gated endpoint (was address-verified only).
+- **Mutual cancellation flow** (`agent/src/routes/trades.ts`, `flowManual.ts`, `trade-detail.tsx`):
+  - `POST /trades/:id/cancel` redesigned: first call from either party sets status to `cancel_requested`, stores `cancel_requested_by` (the requester's address) and `cancel_requested_from_status` (the status at request time).
+  - Second call from the **other** party executes the cancel: if USDC was deposited, transitions to `refunding` then refunds USDC on-chain to seller → `refunded`; if not deposited, transitions directly to `cancelled`. Order is reopened to `open` in both cases.
+  - Calling cancel again as the **same** party who already requested is an idempotent no-op.
+  - `POST /trades/:id/reject-cancel` (new): non-requester can reject the cancel request; trade reverts to the status stored in `cancel_requested_from_status`.
+  - Trade detail page: non-requester sees a "Confirm cancellation / Reject — continue trade" panel when status is `cancel_requested`; all parties see a "Request cancellation" footer for active trades (`created`, `deposited`, `payment_sent`).
+- **Image proof upload** (`frontend/components/payment-sent-form.tsx`, `frontend/app/api/upload-proof/route.ts`):
+  - `PaymentSentForm` now has a click-to-upload area (drag-and-drop supported) for payment screenshots or receipts.
+  - Files POSTed to `/api/upload-proof` → stored in Supabase Storage bucket `payment-proofs`; 5 MB size limit; images only (`image/*` MIME).
+  - Returns a public URL written to `trades.payment_proof_url`. The existing URL paste fallback is retained for users who prefer it.
+- **Migration 009** (`supabase/migrations/009_cancel_statuses.sql`): adds `cancelled` and `refunding` to the trade status enum.
+- **Migration 010** (`supabase/migrations/010_cancel_columns.sql`): adds `trades.cancel_requested_by` (text), `trades.cancel_requested_from_status` (trade_status), and `cancel_requested` to the trade status enum.
+- **New agent routes**: `POST /trades/:id/cancel` (redesigned mutual flow), `POST /trades/:id/reject-cancel`.
+- **New frontend proxy routes**: `POST /api/trades/[id]/cancel`, `POST /api/trades/[id]/reject-cancel`, `POST /api/upload-proof`.
+- **`database.types.ts` updated**: all new statuses (`cancel_requested`, `cancelled`, `refunding`, `refunded`) and cancel columns (`cancel_requested_by`, `cancel_requested_from_status`) added to `trades` Row/Insert/Update types.
+
+---
+
 ## [2.1.3] — 2026-05-03
 
 ### Fixed

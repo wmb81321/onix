@@ -1,10 +1,10 @@
 # Convexo P2P — Roadmap
 
-## Current state: v2.0.0 (2026-05-03)
+## Current state: v2.2.0 (2026-05-03)
 
-Stripe removed entirely. Direct counterparty payment flow live — buyer pays seller off-platform (Zelle/Venmo/bank/wire), seller confirms receipt, agent releases USDC on-chain. Full agentic infrastructure in place: MCP server (8 tools), x402 settle path, buyer agent script. Frontend on Vercel, agent on Railway.
+Taker fee live — both maker and taker pay 0.1 USDC via mppx push mode. Mutual cancellation with two-party consent and on-chain USDC refund shipped. Image proof upload added to PaymentSentForm. Full direct counterparty settlement flow live — buyer pays seller off-platform (Zelle/Venmo/bank/wire), seller confirms receipt, agent releases USDC on-chain. MCP server (8 tools), x402 settle path, and full frontend on Vercel + agent on Railway.
 
-Next focus: agent API spec refresh, seller agent script, end-to-end agentic test, and cleanup pass before mainnet.
+Next focus: Plaid bank account integration for balance-based trust signals at trade time.
 
 ---
 
@@ -19,26 +19,56 @@ Next focus: agent API spec refresh, seller agent script, end-to-end agentic test
 | 3b — Account page | v1.0.0 | Balance, faucet, order/trade history |
 | 5 — BUY orders + ratings | v1.0.0 | BUY order matching (roles swapped), 1–5 star ratings, trade completion |
 | 8 — MCP server | v1.4.0 | `convexo-p2p-mcp` npm package (8 tools, stdio MCP), `/agents` page, public `GET /api/orders`, `settle_trade` crypto-native tool |
-| **v2.0 — Direct payments** | **v2.0.0** | **Stripe removed; `flowManual.ts`; PaymentSentForm + ConfirmPaymentPanel + PaymentMethodsEditor; migration 006; MCP tools updated; buyer-agent.ts rewritten** |
-| Tempo SDK alignment | v2.0.0 | `wallet_getBalances` hook (all token balances); `tempoWallet` from `wagmi/connectors`; balance display fixed (null guard + refetchInterval) |
-| Dev env setup | v2.0.0 | `mppx` skill (`tempoxyz/mpp`); `tempo-docs` skill SKILL.md fixed; `mcp.json` with `tempo` + `mpp` servers; `llms.txt` endpoints documented |
+| v2.0 — Direct payments | v2.0.0 | Stripe removed; `flowManual.ts`; PaymentSentForm + ConfirmPaymentPanel + PaymentMethodsEditor; migration 006; MCP tools updated |
+| Tempo SDK alignment | v2.0.0 | `wallet_getBalances` hook; `tempoWallet` from `wagmi/connectors`; balance display fixed |
+| Dev env setup | v2.0.0 | `mppx` skill; `tempo-docs` skill; `mcp.json` with `tempo` + `mpp` servers |
+| v2.1.0 — Fee at order creation | v2.1.0 | Service fee moved to `POST /orders`; per-order virtual deposit address (derived from orderId); `POST /trades/:id/settle` now Bearer-auth and fee-free |
+| v2.1.1 — Open auth model | v2.1.1 | Address-in-body identity for all payment endpoints; balance hook simplified to single `usePathUsdBalance` |
+| v2.1.2 — Push mode + in-app deposit | v2.1.2 | mppx push mode fix (Tempo passkey compatible); in-app USDC deposit via `Hooks.token.useTransferSync`; own-order expand/cancel in orderbook |
+| v2.1.3 — Payment methods snapshot | v2.1.3 | Migration 008 (`orders.seller_payment_methods`); PaymentMethodsEditor stale state fix; Realtime subscription stability fix; payment methods shown in Place Order modal |
+| v2.2.0 — Taker fee + mutual cancel + image proof | v2.2.0 | Taker fee (mppx 402 at `POST /trades`); mutual cancellation (`cancel_requested` status, confirm/reject paths, USDC refund); image proof upload (Supabase Storage); migrations 009 + 010 |
 
 ---
 
-## Phase 9 — Agent API spec refresh (next)
+## Phase 9 — Plaid bank integration (next to implement)
 
-**Goal:** Single authoritative reference for v2.0 endpoints so any agent can integrate without reading source code.
+**Goal:** Let sellers and buyers optionally connect their bank account. At trade time, read the buyer's bank balance via Plaid to surface a soft trust signal — not a hard block, but a visible green/yellow/red indicator.
 
-Deliverables:
+**Scope:**
+- Plaid Link flow for sellers and buyers to connect their bank account (optional; trade proceeds without it)
+- When the buyer is about to mark payment sent, read their bank balance via the Plaid Balance API; surface as "Bank balance: $X available" (or "Unverified" if not connected) — a trust signal for the seller before confirming
+- Show connected bank name, account type, and masked account number on the account page and optionally on the trade page
+- Server-side only: Plaid `access_token` stored encrypted in Supabase; never sent to the browser
+- NOT implementing ACH or any bank-initiated transfer — read-only account connection and balance reads only
+
+**References:** [plaid/quickstart](https://github.com/plaid/quickstart), [plaid/sandbox-custom-users](https://github.com/plaid/sandbox-custom-users), [plaid/plaid-openapi](https://github.com/plaid/plaid-openapi)
+
+**Deliverables:**
+- `agent/src/routes/plaid.ts` — `POST /plaid/link-token`, `POST /plaid/exchange-token`, `GET /plaid/balance`
+- Migration 011: `users.plaid_access_token` (text, encrypted at rest), `users.plaid_institution` (text), `users.plaid_accounts` (jsonb — snapshot of connected accounts)
+- `frontend/app/api/plaid/` — proxy routes for link-token, exchange-token, balance
+- `PlaidLinkButton` component — loads Plaid Link SDK, exchanges public token, stores access token server-side
+- Balance signal on `PaymentSentForm` and `ConfirmPaymentPanel`: shows buyer's current available balance (or "Unverified" badge)
+- Account page "Connect bank" section: institution name + account type shown after successful connection
+
+**Done when:** A buyer can connect their bank; `PaymentSentForm` shows their current available balance; the seller sees the balance signal in `ConfirmPaymentPanel` before releasing USDC.
+
+---
+
+## Phase 10 — Agent API spec refresh
+
+**Goal:** Single authoritative reference for v2.2 endpoints so any agent can integrate without reading source code.
+
+**Deliverables:**
 - `docs/agent-api.md` — endpoint reference: method, path, auth, request schema, response schema, state transitions triggered
-- Covers: `POST /trades`, `POST /trades/:id/payment-sent`, `POST /trades/:id/confirm-payment`, `POST /trades/:id/settle`, `GET /health`
+- Covers all v2.2 routes: `POST /orders`, `POST /orders/:id/cancel`, `POST /trades`, `POST /trades/:id/payment-sent`, `POST /trades/:id/confirm-payment`, `POST /trades/:id/cancel`, `POST /trades/:id/reject-cancel`, `POST /trades/:id/settle`, `GET /health`
 - Link from README.md
 
-**Done when:** An agent can complete a full trade using only the API docs.
+**Done when:** An agent can complete a full trade (including mutual cancel path) using only the API docs.
 
 ---
 
-## Phase 10 — Seller agent script
+## Phase 11 — Seller agent script
 
 **Goal:** `scripts/seller-agent.ts` — symmetric to `buyer-agent.ts`. Runs unattended and deposits USDC for newly matched trades.
 
@@ -56,13 +86,13 @@ Steps:
 
 ---
 
-## Phase 11 — End-to-end agentic test
+## Phase 12 — End-to-end agentic test
 
 **Goal:** Full headless trade — both seller and buyer agents run unattended, trade completes.
 
 `scripts/e2e-agentic.ts`:
-1. Post SELL order via API
-2. Match it from buyer address via API
+1. Post SELL order via API (pays maker fee)
+2. Match it from buyer address via API (pays taker fee)
 3. Seller agent deposits USDC automatically
 4. Buyer agent marks payment sent with reference
 5. Seller agent (or human) confirms receipt → USDC released
@@ -73,24 +103,24 @@ Steps:
 
 ---
 
-## Phase 12 — Cleanup pass
+## Phase 13 — Cleanup pass
 
 Remove accumulated technical debt before mainnet:
 
-- [ ] Drop legacy Stripe DB columns (migration `007_drop_stripe_columns.sql`): `stripe_account`, `stripe_customer_id`, `stripe_buyer_pm_id`, `stripe_buyer_card_brand`, `stripe_buyer_card_last4`, `stripe_payment_intent_id`, `link_spend_request_id`, `link_payment_method_id`, `stripe_payout_id`, `stripe_account_id`
-- [ ] Regenerate `frontend/lib/database.types.ts` after migration 007
+- [ ] Drop legacy Stripe DB columns (migration `011_drop_stripe_columns.sql` or renumber after Plaid): `stripe_account`, `stripe_customer_id`, `stripe_buyer_pm_id`, `stripe_buyer_card_brand`, `stripe_buyer_card_last4`, `stripe_payment_intent_id`, `link_spend_request_id`, `link_payment_method_id`, `stripe_payout_id`, `stripe_account_id`
+- [ ] Regenerate `frontend/lib/database.types.ts` after migration
 - [ ] `rm -rf agent/dist/` and rebuild: `pnpm --filter agent build`
 - [ ] Remove orphaned pages `frontend/app/stripe/return/` and `frontend/app/stripe/payment-return/[id]/`
 - [ ] Remove stale slash commands: `.claude/commands/test-flow-a.md`, `test-flow-b.md`, `auth-stripe-link.md`
 - [ ] Remove stale Railway env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `LINK_CLI_AUTH`, `LINK_DEFAULT_PM_ID`
 - [ ] Update `frontend/components/agents-content.tsx` stale copy (Stripe Link badge, `initiate_payment` tool name)
-- [ ] Refresh `scripts/buyer-agent.ts` README section now that it's been rewritten
+- [ ] Rewrite `scripts/buyer-agent.ts` for `/payment-sent` (was stale on removed `/link-pay`)
 
 ---
 
-## Phase 13 — Mainnet deploy
+## Phase 14 — Mainnet deploy
 
-**Prerequisites:** Phase 11 green (e2e test passes), Phase 12 clean (no stale Stripe references).
+**Prerequisites:** Phase 12 green (e2e test passes), Phase 13 clean (no stale Stripe references).
 
 Checklist:
 - [ ] Mine new `AGENT_MASTER_ID` on Tempo mainnet (`/setup-virtual-master`)
@@ -104,7 +134,7 @@ Checklist:
 
 ---
 
-## Phase 14 — Post-launch backlog
+## Phase 15 — Post-launch backlog
 
 **Agentic UX:**
 - Spend request auto-approval flow for the x402 settle path
@@ -116,6 +146,8 @@ Checklist:
 - Show counterparty `rating_avg` on order book (pre-match, not just post-trade)
 - Dispute resolution UI — open/close disputes, capture evidence
 - Time-locked refund path — if seller doesn't confirm within N hours, buyer can open dispute
+- Plaid ACH transfer — actually move fiat on-platform once bank accounts are connected (extends Phase 9)
+- Balance oracle for dynamic FX validation instead of user-set rate
 
 **Scale:**
 - Multi-instance agent with trade-level sharding for horizontal scale

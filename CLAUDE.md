@@ -1,47 +1,55 @@
 # Convexo P2P — Project Memory
 
-Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinates trades between unknown counterparties using Tempo's native primitives. Crypto escrow is handled via Tempo Virtual Addresses (TIP-20 native deposit attribution that auto-forwards to a master wallet); fiat moves **directly between counterparties** (Zelle, Venmo, bank transfer, wire, etc.); the seller confirms receipt in the app and the agent then releases USDC on-chain. The 0.1 USDC service fee is charged via MPP (`mppx`) at **order creation** — the order creator pays once and the fee is forfeited on cancel or expiry. No Stripe, no custom Solidity, no TEE, no ERC-8004, no Privy in the MVP — Tempo Wallet, Virtual Addresses, MPP, and Supabase carry the full stack.
+Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinates trades between unknown counterparties using Tempo's native primitives. Crypto escrow is handled via Tempo Virtual Addresses (TIP-20 native deposit attribution that auto-forwards to a master wallet); fiat moves **directly between counterparties** (Zelle, Venmo, bank transfer, wire, etc.); the seller confirms receipt in the app and the agent then releases USDC on-chain. A 0.1 USDC service fee is charged via MPP (`mppx`) at **order creation** (maker fee) and again at **trade creation** (taker fee) — fees are forfeited on cancel or expiry. No Stripe, no custom Solidity, no TEE, no ERC-8004, no Privy in the MVP — Tempo Wallet, Virtual Addresses, MPP, and Supabase carry the full stack.
 
 ---
 
-## Current Build Status (2026-05-03) — v2.1.2
+## Current Build Status (2026-05-03) — v2.2.0
 
-**x402 fee at order creation. mppx push mode (Tempo passkey-compatible). In-app USDC deposit via Hooks.token.useTransferSync. Payment methods shown in Place Order modal.**
+**Taker fee at trade creation. Mutual cancellation with two-party consent and on-chain USDC refund. Image proof upload via Supabase Storage. 10 migrations applied.**
 
 | Layer | Status | Notes |
 |---|---|---|
-| Supabase schema + RLS | ✓ Live | `users`, `orders`, `trades`, `ratings` — 7 migrations applied |
+| Supabase schema + RLS | ✓ Live | `users`, `orders`, `trades`, `ratings` — 10 migrations applied |
 | Migration 007 | ✓ Applied | `orders.virtual_deposit_address` (unique), `service_fee_paid_at`, `service_fee_tx_hash`; legacy open orders expired |
+| Migration 008 | ✓ Applied | `orders.seller_payment_methods` jsonb — payment method snapshot at order creation |
+| Migration 009 | ✓ Applied | `cancelled` and `refunding` added to trade status enum |
+| Migration 010 | ✓ Applied | `cancel_requested` status; `trades.cancel_requested_by`; `trades.cancel_requested_from_status` |
 | Tempo Virtual Address | ✓ Registered | `AGENT_MASTER_ID=0x3ead6d3d`, on-chain Moderato testnet |
 | Agent wallet (EOA) | ✓ Funded | `0x6772787e16a7ea4c5307cc739cc5116b4b26ffc0` |
-| Railway agent | ✓ Live | v2.1.1 — no global Bearer gate; address-in-body auth |
+| Railway agent | ✓ Live | v2.2.0 — no global Bearer gate; address-in-body auth |
 | Railway deploy method | ✓ Git-push | Repo: `wmb81321/onix`, root dir: `/agent`, builder: Dockerfile |
-| Vercel frontend | ✓ Live | v2.1.2 — push mode fix, in-app deposit, payment methods in modal |
-| `POST /orders` (agent) | ✓ Live | Public — mppx x402 gate; creates order + VA; fee forfeited on cancel |
+| Vercel frontend | ✓ Live | v2.2.0 — taker fee, mutual cancel UI, image proof upload |
+| `POST /orders` (agent) | ✓ Live | Public — mppx x402 gate (maker fee 0.1 USDC); creates order + VA; fee forfeited on cancel |
 | `POST /orders/:id/cancel` (agent) | ✓ Live | Address-verified (requester must be order creator), DB-only cancel |
-| `flowManual.ts` | ✓ Live | `markPaymentSent()` + `confirmPayment()` |
+| `POST /trades` (agent) | ✓ Live | mppx x402 gate (taker fee 0.1 USDC); `externalId = taker_<buyer>_<orderId>`; creates trade |
 | `POST /trades/:id/payment-sent` | ✓ Live | Buyer marks fiat sent; `buyer_address` in body verified against trade |
 | `POST /trades/:id/confirm-payment` | ✓ Live | Seller confirms receipt; `seller_address` verified → USDC release |
+| `POST /trades/:id/cancel` | ✓ Live | Mutual — first call = `cancel_requested`; second call from other party = execute + refund if deposited |
+| `POST /trades/:id/reject-cancel` | ✓ Live | Non-requester rejects cancel; reverts to `cancel_requested_from_status` |
 | `POST /trades/:id/settle` | ✓ Code ready | Deprecated — now Bearer-auth only, no fee charged |
-| `PaymentSentForm` component | ✓ Live | Buyer UI: method selector + reference + optional proof URL |
+| `PaymentSentForm` component | ✓ Live | Buyer UI: method selector + reference + image upload + optional proof URL |
 | `ConfirmPaymentPanel` component | ✓ Live | Seller UI: shows buyer's payment details + confirm button |
 | `PaymentMethodsEditor` component | ✓ Live | Seller adds Zelle/Venmo/Wire/etc. on `/account` |
+| Image proof upload | ✓ Live | `/api/upload-proof` → Supabase Storage `payment-proofs` bucket; 5 MB limit; images only |
 | Order book | ✓ Live | BUY + SELL orders, filter tabs, Realtime, own orders expand/cancel |
-| Place order modal | ✓ Live | mppx/client push mode; payment methods shown for SELL orders; balance check + fee warning |
-| Trade tracker | ✓ Live | In-app deposit button (`useTransferSync`), PaymentSentForm, ConfirmPaymentPanel, rating widget |
+| Place order modal | ✓ Live | mppx/client push mode (maker fee); payment methods for SELL orders; balance check + fee warning |
+| Match order (taker fee) | ✓ Live | mppx/client push mode wraps `POST /api/trades`; `externalId = taker_<buyer>_<orderId>` |
+| Trade tracker | ✓ Live | Deposit button, PaymentSentForm, ConfirmPaymentPanel, cancel/reject-cancel panel, rating widget |
 | Account page | ✓ Live | Balance (native hook), faucet, payment methods editor, order/trade history |
 | Ratings | ✓ Live | 1-5 stars after released/complete, updates rating_avg |
 | BUY order matching | ✓ Live | Buyer/seller roles swapped correctly for BUY orders |
 | MCP server (`convexo-p2p-mcp`) | ✓ v2.0.0 | 8 tools — `mark_payment_sent`, `confirm_payment`, `settle_trade` etc. |
 | `/agents` page | ✓ Live | Developer install page — MCP snippet, tool table, example session |
 | Public `GET /api/orders` | ✓ Live | No-auth order listing; `?type=`, `?status=`, `?id=` query params |
-| mppx push mode | ✓ Fixed | `mode: 'push'` in `place-order-modal.tsx`; no `feePayer: true` in agent config — Tempo passkey wallets are incompatible with pull mode |
+| mppx push mode | ✓ Live | `mode: 'push'` for both maker fee (place order) and taker fee (match order); no `feePayer: true` in agent config |
 | Stripe agent code | ✗ Removed | `agent/src/stripe/`, `agent/src/lib/link.ts`, `agent/src/routes/webhooks.ts`, `flowA.ts` deleted |
 | Stripe frontend routes | ✗ Stubbed (410) | `/api/stripe/*`, `/api/users/link-pm`, `/api/trades/[id]/{link-pay,auto-pay,payment-intent}` |
 | Stripe components | ✗ Stubbed | `BuyerPaymentForm`, `LinkPayButton`, `LinkPmSetup`, `SaveCardForm`, `StripeConnectButton` are now `export {}` |
 | Stripe webhook | ✗ Removed | `we_1TSOSkIeMhBdGlf7tM8ekyQI` no longer routes to anything |
-| Agent API spec doc | ✗ Next | `docs/agent-api.md` — refresh for v2.1 endpoints |
+| Agent API spec doc | ✗ Next | `docs/agent-api.md` — refresh for v2.2 endpoints |
 | Seller agent script | ✗ Next | `scripts/seller-agent.ts` — auto-deposit on matched orders |
+| Plaid integration | ✗ Phase 9 | Bank account connect + balance signal at trade time (planned) |
 | `scripts/buyer-agent.ts` | ⚠ Stale | Still calls removed `/api/trades/:id/link-pay` — needs rewrite for `payment-sent` |
 | `frontend/app/stripe/` pages | ⚠ Stale | `return/`, `payment-return/` directories no longer reachable from UI |
 | `agent/dist/` | ⚠ Stale | Old build artifacts (stripe/, flowA.js) — safe to `rm -rf` |
@@ -59,10 +67,10 @@ Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinate
 | `frontend/components/` | `PaymentSentForm`, `ConfirmPaymentPanel`, `PaymentMethodsEditor`, `PlaceOrderModal`, `BalanceDisplay`, `ConnectButton`, `AgentsContent` | Vercel |
 | `agent/` | TypeScript settlement runtime — HTTP server, state machine, deposit monitor | Railway (persistent) |
 | `agent/src/flows/` | `flowManual.ts` — `markPaymentSent` and `confirmPayment` | Railway |
-| `agent/src/routes/` | `orders.ts` — POST /orders + cancel; `trades.ts` — payment-sent, confirm-payment, settle | Railway |
+| `agent/src/routes/` | `orders.ts` — POST /orders + cancel; `trades.ts` — payment-sent, confirm-payment, cancel, reject-cancel, settle | Railway |
 | `agent/src/tempo/` | `wallet.ts`, `monitor.ts`, `chain.ts`, `virtualAddresses.ts` | Railway |
 | `agent/src/lib/` | `env.ts`, `mppx.ts`, `router.ts`, `schemas.ts`, `supabase.ts` (no `link.ts`) | Railway |
-| `supabase/` | SQL migrations (007 applied) + RLS policies | Supabase (production) |
+| `supabase/` | SQL migrations (010 applied) + RLS policies | Supabase (production) |
 | `scripts/` | `buyer-agent.ts` — currently stale; rewrite pending for v2.0 | Local / any Node host |
 | `mcp-server/` | `convexo-p2p-mcp` npm package — stdio MCP, 8 v2.0 tools | npm / `npx` |
 | `docs/` | Architecture references | — |
@@ -82,7 +90,7 @@ The **agent** needs a persistent long-running process (deposit monitor, on-chain
 | User wallet | Tempo Wallet (`tempoWallet()` wagmi connector) | Import `tempoModerato` from `viem/chains`, `tempoWallet` from `wagmi/connectors` |
 | Deposits | TIP-20 Virtual Addresses | `VirtualAddress.from({ masterId, userTag: tradeId })` — userTag never reused |
 | Agent wallet | Tempo master wallet + access keys | `AGENT_MASTER_ID` immutable; access keys carry `maxSpend` + `expiry` |
-| Service fee | MPP session via `mppx` | `mppx['tempo/charge']({ amount: '0.1', externalId: tradeId })` |
+| Service fee | MPP via `mppx` (maker + taker) | Maker: `externalId = orderId` at `POST /orders`; Taker: `externalId = taker_<buyer>_<orderId>` at `POST /trades` |
 | Buyer fiat | **Direct counterparty payment** (Zelle/Venmo/Wire/Bank/CashApp/PayPal/Other) | Buyer marks sent with method + reference + optional proof URL |
 | Seller payout | **Direct counterparty payment** | Seller confirms receipt manually; trust + ratings replace escrow |
 | Release trigger | Seller-confirmed receipt | `confirmPayment()` checks `seller_address`, then transfers USDC on-chain |
@@ -95,7 +103,7 @@ The **agent** needs a persistent long-running process (deposit monitor, on-chain
 
 ---
 
-## Database Schema (7 migrations)
+## Database Schema (10 migrations)
 
 | Migration | What it adds |
 |---|---|
@@ -105,8 +113,12 @@ The **agent** needs a persistent long-running process (deposit monitor, on-chain
 | `004_link_fields.sql` | `trades.link_spend_request_id`, `users.link_payment_method_id` (legacy) |
 | `005_buyer_payment_method.sql` | `users.stripe_customer_id` etc. (legacy) |
 | `006_manual_payment.sql` | New trade statuses (`payment_sent`, `payment_confirmed`, `disputed`); `trades.payment_method`, `payment_reference`, `payment_proof_url`, `payment_sent_at`, `payment_confirmed_at`; `users.payment_methods` jsonb |
+| `007_order_deposit_address.sql` | `orders.virtual_deposit_address` (unique), `orders.service_fee_paid_at`, `orders.service_fee_tx_hash`; expires legacy open orders |
+| `008_order_payment_methods.sql` | `orders.seller_payment_methods` jsonb — payment method snapshot at order creation |
+| `009_cancel_statuses.sql` | `cancelled` and `refunding` added to trade status enum |
+| `010_cancel_columns.sql` | `cancel_requested` status; `trades.cancel_requested_by` (text); `trades.cancel_requested_from_status` (trade_status) |
 
-Legacy Stripe columns (`stripe_account`, `link_payment_method_id`, `stripe_customer_id`, `stripe_buyer_pm_id`, `stripe_buyer_card_brand`, `stripe_buyer_card_last4`, `stripe_payment_intent_id`, `link_spend_request_id`, `stripe_payout_id`, `stripe_account_id`) remain in the schema for backward compatibility but are NOT written by any v2.0 code path. They will be dropped in a future migration.
+Legacy Stripe columns (`stripe_account`, `link_payment_method_id`, `stripe_customer_id`, `stripe_buyer_pm_id`, `stripe_buyer_card_brand`, `stripe_buyer_card_last4`, `stripe_payment_intent_id`, `link_spend_request_id`, `stripe_payout_id`, `stripe_account_id`) remain in the schema for backward compatibility but are NOT written by any v2.0+ code path. They will be dropped in a future migration.
 
 ---
 
@@ -116,14 +128,21 @@ Legacy Stripe columns (`stripe_account`, `link_payment_method_id`, `stripe_custo
 created → deposited → payment_sent → payment_confirmed → released → complete
 ```
 
+Any of `created`, `deposited`, or `payment_sent` can transition to `cancel_requested` (first party calls `POST /trades/:id/cancel`). From `cancel_requested`:
+- Other party **confirms** (`POST /trades/:id/cancel`) → `cancelled` if no USDC deposited; or `refunding` → `refunded` (USDC returned to seller on-chain) if deposited. Order is reopened to `open` in both cases.
+- Other party **rejects** (`POST /trades/:id/reject-cancel`) → reverts to the status stored in `cancel_requested_from_status`.
+- Same party calls cancel again → idempotent no-op.
+
 **Agent entry points (no global Bearer gate — address in body IS identity):**
 - `POST /trades/:id/payment-sent` (`buyer_address` in body verified against trade row) → `markPaymentSent()` → `payment_sent`
 - `POST /trades/:id/confirm-payment` (`seller_address` in body verified against trade row) → `confirmPayment()` → `payment_confirmed` → on-chain `transferUsdc` → `released` → `complete`
+- `POST /trades/:id/cancel` (address-verified, either party) → first call = `cancel_requested`; second call from other party = execute cancel + optional refund
+- `POST /trades/:id/reject-cancel` (address-verified, non-requester) → reverts to `cancel_requested_from_status`
 - `POST /trades/:id/settle` (Bearer auth, deprecated) → `markPaymentSent()` with `method='x402'`, then still requires `confirm-payment` to release USDC
 
-**Failure states:** `deposit_timeout` (30 min), `disputed`, `refunded`
+**Failure states:** `deposit_timeout` (30 min), `disputed`, `refunded`, `cancelled`, `refunding`
 
-**Legacy statuses kept on the enum for backward compat with old rows:** `fee_paid`, `fiat_sent`, `stripe_failed` — never written by v2.0 code.
+**Legacy statuses kept on the enum for backward compat with old rows:** `fee_paid`, `fiat_sent`, `stripe_failed` — never written by v2.0+ code.
 
 All transitions write Supabase BEFORE the side-effect runs.
 
@@ -160,32 +179,37 @@ All transitions write Supabase BEFORE the side-effect runs.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/health` | public | Health check, returns `{ status: 'ok', version: '2.1.0' }` |
-| POST | `/orders` | **public** (mppx 402) | Pay 0.1 USDC service fee → creates order + derives per-order virtual deposit address |
+| GET | `/health` | public | Health check, returns `{ status: 'ok', version: '2.2.0' }` |
+| POST | `/orders` | **public** (mppx 402) | Pay 0.1 USDC maker fee → creates order + derives per-order virtual deposit address |
 | POST | `/orders/:id/cancel` | address-verified | Requester address must match order creator; DB-only cancel; VA persists; fee forfeited |
-| POST | `/trades` | address-verified | Creates trade; buyer address in body matched against order |
+| POST | `/trades` | **public** (mppx 402) | Pay 0.1 USDC taker fee (`externalId = taker_<buyer>_<orderId>`) → creates trade |
 | POST | `/trades/:id/payment-sent` | address-verified | `buyer_address` in body verified against trade; marks fiat sent → `payment_sent` |
 | POST | `/trades/:id/confirm-payment` | address-verified | `seller_address` in body verified against trade; releases USDC → `complete` |
+| POST | `/trades/:id/cancel` | address-verified (either) | First call = `cancel_requested`; second call from other party = execute + refund if deposited |
+| POST | `/trades/:id/reject-cancel` | address-verified (non-requester) | Rejects cancel request; reverts trade to `cancel_requested_from_status` |
 | POST | `/trades/:id/settle` | Bearer | **Deprecated** — marks `payment_sent` with `method='x402'`, no fee charged. Use `payment-sent` for new integrations. |
 
 ### Frontend proxy (Next.js — server-side, no browser auth needed)
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/api/orders` | Proxy to agent with transparent 402 passthrough (browser pays via mppx/client) |
+| POST | `/api/orders` | Proxy to agent with transparent 402 passthrough (browser pays maker fee via mppx/client) |
 | POST | `/api/orders/[id]/cancel` | Cancel order (forwards to agent with Bearer auth) |
 | GET | `/api/orders` | Public read — `?type=`, `?status=`, `?id=` |
 | GET | `/api/orders/by-user` | Orders for a wallet (service-role read) |
-| POST | `/api/trades` | Create trade (forwards to agent) |
+| POST | `/api/trades` | Create trade with transparent 402 passthrough (browser pays taker fee via mppx/client) |
 | GET | `/api/trades/[id]` | Fetch trade from Supabase |
 | POST | `/api/trades/[id]/settle` | Forward to agent settle (deprecated) |
 | POST | `/api/trades/[id]/payment-sent` | Forward to agent payment-sent |
 | POST | `/api/trades/[id]/confirm-payment` | Forward to agent confirm-payment |
+| POST | `/api/trades/[id]/cancel` | Forward to agent mutual cancel |
+| POST | `/api/trades/[id]/reject-cancel` | Forward to agent reject-cancel |
 | POST | `/api/trades/[id]/rate` | Submit rating (1-5 stars + optional comment) |
 | GET | `/api/trades/by-user` | Trades for a wallet (service-role read) |
 | GET | `/api/users/me` | Fetch user payment methods + rating + trade count |
 | POST | `/api/users/upsert` | Upsert user row on first wallet connect |
 | POST | `/api/users/payment-methods` | Save/replace seller's payment methods array |
+| POST | `/api/upload-proof` | Upload payment proof image → Supabase Storage `payment-proofs` bucket (5 MB limit, images only) |
 
 ### Removed in v2.0 (now return 410 Gone)
 
@@ -259,8 +283,8 @@ All transitions write Supabase BEFORE the side-effect runs.
 13. **`Hooks.faucet.useFundSync` from `wagmi/tempo`** for testnet faucet.
 13a. **`Hooks.token.useTransferSync` from `wagmi/tempo`** for in-app TIP-20 transfers (e.g. seller deposit to virtual address). Never use raw `viem` `writeContract` for user-facing transfers — the hook handles passkey signing and gas sponsorship correctly.
 13b. **mppx client must use `mode: 'push'`** when the user wallet is a Tempo passkey wallet. Pull mode (`signTransaction` path) is incompatible — Tempo passkey wallets always attach a `feePayerSignature` using passkey crypto that Revm's ECDSA recovery cannot verify. Never set `mode: 'pull'` or remove `mode: 'push'` from `place-order-modal.tsx`. On the agent side, never set `feePayer: true` in `tempo.charge` — it causes `FeePayerValidationError: rejected fields: feePayerSignature`.
-14. **`POST /orders` is public** — mppx 0.1 USDC payment IS the auth. The fee is charged once at order creation and forfeited on cancel or expiry. `POST /trades/:id/settle` is **Bearer-auth only** (deprecated; no fee charged there anymore).
-15. **No global Bearer gate on payment endpoints.** `POST /orders/:id/cancel` verifies `requester_address` against `order.creator_address`; `POST /trades/:id/payment-sent` verifies `buyer_address`; `POST /trades/:id/confirm-payment` verifies `seller_address`. Address-in-body IS the identity proof — never re-add a global API key check to these routes.
+14. **`POST /orders` and `POST /trades` are public mppx-gated endpoints.** `POST /orders` charges the maker fee (0.1 USDC, `externalId = orderId`); `POST /trades` charges the taker fee (0.1 USDC, `externalId = taker_<buyer>_<orderId>`). Both fees are forfeited on cancel or expiry. `POST /trades/:id/settle` is **Bearer-auth only** (deprecated; no fee charged there anymore).
+15. **No global Bearer gate on payment endpoints.** `POST /orders/:id/cancel` verifies `requester_address` against `order.creator_address`; `POST /trades/:id/payment-sent` verifies `buyer_address`; `POST /trades/:id/confirm-payment` verifies `seller_address`; `POST /trades/:id/cancel` and `POST /trades/:id/reject-cancel` verify the caller is either buyer or seller of the trade. Address-in-body IS the identity proof — never re-add a global API key check to these routes.
 15a. **Virtual deposit address is per-order, not per-trade.** `deriveDepositAddress(masterId, orderId)` is called in `POST /orders`; `POST /trades` reads the VA from the order row. Never re-derive from `tradeId`.
 16. **State machine transitions are idempotent.** Re-calling `markPaymentSent` or `confirmPayment` for a trade already past that state must be a no-op, not a duplicate side-effect.
 17. **No new Stripe code.** Stripe is intentionally absent. If a payment rail expansion is needed later, build it as `flowB.ts` next to `flowManual.ts` — do not resurrect `flowA.ts`.

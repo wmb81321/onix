@@ -7,16 +7,18 @@ Agentic P2P crypto-fiat settlement on Tempo. An AI Agent coordinates trades betw
 
 ---
 
-## What Works Today (v2.1.2 · Moderato Testnet)
+## What Works Today (v2.2.0 · Moderato Testnet)
 
 - **Order book** — live BUY/SELL orders with Supabase Realtime; filter by All/Buy/Sell; own orders expandable with cancel button
-- **Place orders** — pay 0.1 USDC service fee (mppx x402) → order created with per-order virtual deposit address; payment methods shown inline for SELL orders
-- **Match orders** — match a sell order to buy USDC, or match a buy order to sell USDC
+- **Place orders** — pay 0.1 USDC service fee (mppx push mode) → order created with per-order virtual deposit address; payment methods shown inline for SELL orders
+- **Match orders** — pay 0.1 USDC taker fee (mppx push mode) → trade created; match a sell order to buy USDC, or match a buy order to sell USDC
 - **In-app USDC deposit** — seller taps "Send X USDC" on the trade page; `Hooks.token.useTransferSync` broadcasts the TIP-20 transfer from their connected wallet to the virtual deposit address (no copy-paste required)
 - **Full settlement** — seller deposits USDC → buyer pays fiat directly → USDC released on-chain
-- **Payment methods** — sellers register Zelle/Venmo/CashApp/bank/wire on `/account`; shown in Place Order modal and on the trade page so buyers know how to pay
-- **Payment confirmation** — buyer marks payment sent (method + reference + optional proof URL); seller confirms receipt → USDC released on-chain
-- **Trade tracker** — real-time status per trade with deposit panel, payment forms, and progress stepper
+- **Payment methods** — sellers register Zelle/Venmo/CashApp/bank/wire on `/account`; snapshotted at order creation and shown on the trade page so buyers know how to pay
+- **Payment confirmation** — buyer marks payment sent (method + reference + optional proof image or URL); seller confirms receipt → USDC released on-chain
+- **Image proof upload** — buyer can upload a payment screenshot directly in `PaymentSentForm`; stored in Supabase Storage (`payment-proofs` bucket, 5 MB limit)
+- **Mutual cancellation** — either party can request cancellation; the other party must confirm or reject; USDC is refunded to seller if already deposited
+- **Trade tracker** — real-time status per trade with deposit panel, payment forms, cancel/reject-cancel panel, and progress stepper
 - **Ratings** — both parties rate each other (1–5 stars) after settlement; `rating_avg` tracked per user
 - **Account page** — pathUSD balance via `Hooks.token.useGetBalance`, in-app testnet faucet, payment methods editor, order/trade history
 - **In-app testnet faucet** — one-click test tokens via `Hooks.faucet.useFundSync`
@@ -28,15 +30,15 @@ Agentic P2P crypto-fiat settlement on Tempo. An AI Agent coordinates trades betw
 ## Settlement Flow
 
 ```
-Seller posts SELL order (or Buyer posts BUY order)
+Seller posts SELL order (pays 0.1 USDC maker fee via mppx)
   ↓
-Counter-party matches → Agent creates trade + derives virtual deposit address
+Counter-party matches (pays 0.1 USDC taker fee via mppx) → Agent creates trade + virtual deposit address
   ↓
 Seller sends USDC to virtual address → auto-forwards to Agent master wallet → status: deposited
   ↓
 Buyer sees seller's payment methods on /trades/[id], sends fiat off-platform
   ↓
-Buyer fills PaymentSentForm (method + reference + optional proof URL) → status: payment_sent
+Buyer fills PaymentSentForm (method + reference + optional proof image/URL) → status: payment_sent
   ↓
 Seller sees ConfirmPaymentPanel with buyer's payment details, verifies fiat arrived
   ↓
@@ -49,15 +51,26 @@ Both parties rate the trade (1–5 stars)
 
 BUY orders follow the same flow with roles swapped: order poster is buyer, matcher is seller.
 
+### Cancellation
+
+Either party can request cancellation at any point before `payment_confirmed`. The first party to call `POST /trades/:id/cancel` moves the trade to `cancel_requested`. The other party then sees a Confirm / Reject panel:
+
+- **Confirm** → trade moves to `cancelled` (if no USDC was deposited) or `refunding` → `refunded` (USDC returned to seller on-chain); order reopened to `open`.
+- **Reject** → trade reverts to the status it had before the cancel was requested; trade continues normally.
+
+Calling cancel again as the same requesting party is an idempotent no-op.
+
 ### Agent-native path (no UI, Bearer auth)
 
 ```bash
-# Autonomous agent places an order (pays 0.1 USDC service fee via mppx x402)
+# Autonomous agent places an order (pays 0.1 USDC maker fee via mppx push mode)
 POST /orders              # 402 challenge → pay 0.1 USDC via mppx → order created with VA
 
-# Agent matches an order and marks payment as sent (deprecated settle path)
+# Agent matches an order (pays 0.1 USDC taker fee via mppx push mode)
+POST /trades              # 402 challenge → pay 0.1 USDC → trade created
+
+# Deprecated settle path (marks payment_sent only; seller still confirms)
 POST /trades/:id/settle   # Bearer auth (no fee) → marks payment_sent with method='x402'
-# Seller (human or agent) still confirms receipt manually
 POST /trades/:id/confirm-payment  # releases USDC on-chain
 ```
 
@@ -70,8 +83,9 @@ POST /trades/:id/confirm-payment  # releases USDC on-chain
 | Blockchain | Tempo (Moderato testnet, chain ID 42431) |
 | USDC escrow | TIP-20 Virtual Addresses (per-order, auto-forward to master wallet) |
 | Fiat payment | **Direct counterparty** — Zelle, Venmo, CashApp, bank transfer, wire, PayPal |
-| Service fee | MPP x402 via `mppx` (0.1 USDC, charged at `POST /orders`; forfeited on cancel/expiry) |
-| Database | Supabase Postgres + Realtime + RLS |
+| Maker fee | MPP x402 via `mppx` (0.1 USDC, charged at `POST /orders`; forfeited on cancel/expiry) |
+| Taker fee | MPP x402 via `mppx` (0.1 USDC, charged at `POST /trades`; `externalId = taker_<buyer>_<orderId>`) |
+| Database | Supabase Postgres + Realtime + RLS + Storage (payment-proofs bucket) |
 | Frontend | Next.js 15 App Router on Vercel |
 | Agent | TypeScript / Node.js on Railway (persistent server) |
 | Wallet | Tempo Wallet (`tempoWallet()` from `wagmi/connectors`) — passkey-based, push mode for mppx |
@@ -118,18 +132,20 @@ railway variables set KEY=V  # set agent env var
 agent/
   src/flows/flowManual.ts    markPaymentSent() + confirmPayment() — manual settlement
   src/routes/orders.ts       POST /orders (mppx x402 gate) + POST /orders/:id/cancel
-  src/routes/trades.ts       POST /trades, /payment-sent, /confirm-payment, /settle
+  src/routes/trades.ts       POST /trades (mppx taker fee), /payment-sent, /confirm-payment,
+                             /cancel (mutual), /reject-cancel, /settle (deprecated)
   src/tempo/                 Virtual addresses, deposit monitor, on-chain transfers
   src/lib/                   env.ts, supabase.ts, mppx.ts, router.ts, schemas.ts
 
 frontend/
   app/orderbook/             Live order book — own orders expandable/cancellable, Realtime
-  app/trades/[id]/           Trade tracker — in-app deposit button, payment forms, rating
+  app/trades/[id]/           Trade tracker — deposit button, payment forms, cancel/reject panel, rating
   app/account/               pathUSD balance, faucet, payment methods, order/trade history
   app/api/                   Server-side proxy routes → Railway agent + Supabase reads
+  app/api/upload-proof/      POST — uploads payment proof image to Supabase Storage
   components/
-    place-order-modal.tsx    mppx/client 402 payment; payment methods shown for SELL orders
-    payment-sent-form.tsx    Buyer marks fiat sent (method + reference + proof URL)
+    place-order-modal.tsx    mppx/client push mode 402 payment; payment methods for SELL orders
+    payment-sent-form.tsx    Buyer marks fiat sent (method + reference + proof image/URL)
     confirm-payment-panel.tsx Seller confirms receipt → USDC released on-chain
     payment-methods-editor.tsx Seller registers Zelle/Venmo/CashApp/Wire/Bank/PayPal/Other
     balance-display.tsx      pathUSD balance via Hooks.token.useGetBalance
@@ -141,11 +157,11 @@ mcp-server/
   src/index.ts               convexo-p2p-mcp npm package — 8 MCP tools for agents
 
 supabase/
-  migrations/                007 migrations applied (VA on orders, service_fee columns)
+  migrations/                010 migrations applied (cancel columns, new statuses)
 
 docs/
   tempo/tempoSDK.md          Full Tempo Accounts SDK reference
-  agent-api.md               Agent HTTP API reference (pending refresh for v2.1)
+  agent-api.md               Agent HTTP API reference (pending refresh for v2.2)
 ```
 
 ---
@@ -183,7 +199,7 @@ npx convexo-p2p-mcp   # or add to mcp.json
 | `match_order` | Match an existing order to create a trade |
 | `mark_payment_sent` | Buyer marks fiat as sent (method + reference) |
 | `confirm_payment` | Seller confirms receipt → USDC released on-chain |
-| `settle_trade` | Pay 0.1 USDC mppx fee → marks payment_sent (x402 path) |
+| `settle_trade` | Pay 0.1 USDC mppx fee → marks payment_sent (x402 path, deprecated) |
 | `submit_rating` | Rate the counterparty after trade completes |
 
 ---
@@ -192,9 +208,9 @@ npx convexo-p2p-mcp   # or add to mcp.json
 
 See [ROADMAP.md](./ROADMAP.md) for the full phase plan.
 
-- **Phase 9** — Refresh `docs/agent-api.md` for v2.1 endpoints
-- **Phase 10** — `scripts/seller-agent.ts` — auto-deposit on matched orders
-- **Phase 11** — Rewrite `scripts/buyer-agent.ts` for `/payment-sent` (was stale on removed `/link-pay`)
+- **Phase 9** — Plaid bank integration: connect bank accounts, read balances as a trust signal at trade time (planned, not yet implemented)
+- **Phase 10** — Refresh `docs/agent-api.md` for v2.2 endpoints
+- **Phase 11** — `scripts/seller-agent.ts` — auto-deposit on matched orders
 - **Phase 12** — `scripts/e2e-agentic.ts` — full headless trade test
-- **Phase 13** — Cleanup pass: drop legacy Stripe DB columns (migration 008), rebuild `agent/dist/`
+- **Phase 13** — Cleanup pass: drop legacy Stripe DB columns, rebuild `agent/dist/`
 - **Phase 14** — Mainnet deploy (switch chain, real USDC)
