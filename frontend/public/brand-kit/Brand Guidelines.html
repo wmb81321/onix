@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>p2pai · Brand Guidelines</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ink: #1c1b18;
+    --ink-soft: #5a5650;
+    --paper: #fafaf7;
+    --paper-warm: #f3f1ec;
+    --sapphire: #1d3a8a;
+    --ruby: #c41e3a;
+    --rule: rgba(28,27,24,0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: 'Geist', -apple-system, sans-serif; }
+  body { padding: 80px 64px 120px; max-width: 1280px; margin: 0 auto; }
+
+  .mono { font-family: 'Geist Mono', monospace; }
+  .eyebrow {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 12px;
+  }
+  h1 { font-size: 64px; line-height: 1; letter-spacing: -2.5px; font-weight: 500; margin: 0 0 8px; }
+  h2 { font-size: 14px; font-family: 'Geist Mono', monospace; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 24px; }
+  h3 { font-size: 22px; font-weight: 500; letter-spacing: -0.5px; margin: 0 0 6px; }
+  p { line-height: 1.55; color: var(--ink-soft); margin: 0; max-width: 60ch; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 80px 0; }
+
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 48px; margin-bottom: 80px; }
+  header .lede { max-width: 56ch; font-size: 18px; line-height: 1.55; color: var(--ink-soft); }
+
+  section { margin-bottom: 80px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+
+  .card {
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: var(--paper);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .card .surface { padding: 48px 32px; display: flex; align-items: center; justify-content: center; min-height: 200px; }
+  .card .surface.dark { background: var(--ink); }
+  .card .surface.warm { background: var(--paper-warm); }
+  .card .surface.gradient { background: linear-gradient(135deg, var(--sapphire), var(--ruby)); }
+  .card .label {
+    border-top: 1px solid var(--rule);
+    padding: 14px 18px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* Color swatches */
+  .swatch {
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .swatch .chip { height: 200px; }
+  .swatch .info { padding: 18px; background: var(--paper); }
+  .swatch .info .name { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+  .swatch .info .vals { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-soft); line-height: 1.7; }
+  .swatch .info .vals span { display: block; }
+
+  /* Type spec table */
+  .type-row { display: grid; grid-template-columns: 200px 1fr 200px; gap: 24px; padding: 24px 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+  .type-row:last-child { border-bottom: none; }
+  .type-row .role { font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+  .type-row .specs { font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--ink-soft); line-height: 1.7; }
+
+  /* Spacing diagram */
+  .spacing-card .surface { position: relative; padding: 24px; min-height: 280px; }
+  .spacing-card .clear-zone {
+    position: relative;
+    border: 1.5px dashed rgba(28,27,24,0.3);
+    border-radius: 4px;
+    padding: 32px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .spacing-card .x-marker {
+    position: absolute;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+
+  /* Do/Don't */
+  .check { color: var(--sapphire); font-weight: 600; }
+  .cross { color: var(--ruby); font-weight: 600; }
+  .rule-card .label.good { color: var(--sapphire); }
+  .rule-card .label.bad { color: var(--ruby); }
+
+  /* Files block */
+  .files {
+    background: var(--paper-warm);
+    border-radius: 12px;
+    padding: 32px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--ink);
+  }
+  .files .dim { color: var(--ink-soft); }
+  .files .dir { font-weight: 600; }
+
+  /* Logo wordmark used in header lockup */
+  .wm {
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+</style>
+</head>
+<body>
+
+<!-- ─────────── Header ─────────── -->
+<header>
+  <div>
+    <div class="eyebrow">Brand Guidelines · v1.0</div>
+    <h1>p2pai</h1>
+    <p class="lede" style="margin-top:24px">A peer-to-peer AI network. The mark expresses two peers exchanging — Sapphire and Ruby — bridged by a solid AI core.</p>
+  </div>
+  <!-- Header lockup -->
+  <div style="display:flex;align-items:center;gap:20px">
+    <svg viewBox="0 0 160 80" width="160" height="80" fill="none">
+      <path d="M 38 36 Q 80 6 120 34" stroke="var(--ink)" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 120 34 L 108 26 L 112 36 L 106 42 Z" fill="var(--ink)"/>
+      <path d="M 122 46 Q 80 74 40 46" stroke="var(--ink)" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 40 46 L 52 54 L 48 44 L 54 38 Z" fill="var(--ink)"/>
+      <circle cx="24" cy="40" r="14" fill="var(--sapphire)"/>
+      <circle cx="136" cy="40" r="14" fill="var(--ruby)"/>
+      <g transform="translate(80 40) rotate(45)"><rect x="-8" y="-8" width="16" height="16" fill="var(--ink)"/></g>
+    </svg>
+  </div>
+</header>
+
+<!-- ─────────── 01 · The Mark ─────────── -->
+<section>
+  <h2>01 · The Mark</h2>
+  <h3>Two peers, two channels, one core.</h3>
+  <p style="margin-bottom:32px">The Sapphire peer (left) and Ruby peer (right) exchange across two arrows — one flowing right, one flowing left. The solid diamond between them represents the AI core: a single, unbroken form.</p>
+
+  <div class="grid-4">
+    <div class="card">
+      <div class="surface">
+        <img src="svg/mark/mark-color.svg" width="240" height="120" alt="Mark · color" />
+      </div>
+      <div class="label"><span>Mark · color</span><span>01·a</span></div>
+    </div>
+    <div class="card">
+      <div class="surface dark">
+        <img src="svg/mark/mark-color-dark.svg" width="240" height="120" alt="Mark · color on dark" />
+      </div>
+      <div class="label"><span>Mark · on dark</span><span>01·b</span></div>
+    </div>
+    <div class="card">
+      <div class="surface warm">
+        <img src="svg/mark/mark-mono-ink.svg" width="240" height="120" alt="Mark · mono ink" />
+      </div>
+      <div class="label"><span>Mark · mono ink</span><span>01·c</span></div>
+    </div>
+    <div class="card">
+      <div class="surface dark">
+        <img src="svg/mark/mark-mono-paper.svg" width="240" height="120" alt="Mark · mono paper" />
+      </div>
+      <div class="label"><span>Mark · mono paper</span><span>01·d</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 02 · Lockups ─────────── -->
+<section>
+  <h2>02 · Lockups</h2>
+  <h3>Stacked is primary. Horizontal is for tight spaces.</h3>
+  <p style="margin-bottom:32px">Use the stacked lockup for hero placements (signage, splash screens, app store). Use the horizontal lockup in headers, footers, and any place vertical space is constrained.</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="surface" style="min-height:340px">
+        <img src="svg/lockup-stacked/stacked-color.svg" width="280" height="auto" alt="Stacked lockup" />
+      </div>
+      <div class="label"><span>Stacked · primary</span><span>02·a</span></div>
+    </div>
+    <div class="card">
+      <div class="surface" style="min-height:340px">
+        <img src="svg/lockup-horizontal/horizontal-color.svg" width="500" height="auto" alt="Horizontal lockup" />
+      </div>
+      <div class="label"><span>Horizontal · secondary</span><span>02·b</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 03 · Color ─────────── -->
+<section>
+  <h2>03 · Color</h2>
+  <h3>Sapphire and Ruby. Ink and Paper.</h3>
+  <p style="margin-bottom:32px">Two gem hues at matched chroma carry the brand. Ink and Paper are the workhorses — used for everything else.</p>
+
+  <div class="grid-4">
+    <div class="swatch">
+      <div class="chip" style="background:var(--sapphire)"></div>
+      <div class="info">
+        <div class="name">Sapphire</div>
+        <div class="vals">
+          <span>HEX  #1D3A8A</span>
+          <span>RGB  29 · 58 · 138</span>
+          <span>OKLCH 0.45 / 0.18 / 260</span>
+        </div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="chip" style="background:var(--ruby)"></div>
+      <div class="info">
+        <div class="name">Ruby</div>
+        <div class="vals">
+          <span>HEX  #C41E3A</span>
+          <span>RGB  196 · 30 · 58</span>
+          <span>OKLCH 0.50 / 0.20 / 20</span>
+        </div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="chip" style="background:var(--ink)"></div>
+      <div class="info">
+        <div class="name">Ink</div>
+        <div class="vals">
+          <span>HEX  #1C1B18</span>
+          <span>RGB  28 · 27 · 24</span>
+          <span>OKLCH 0.18 / 0.01 / 60</span>
+        </div>
+      </div>
+    </div>
+    <div class="swatch">
+      <div class="chip" style="background:var(--paper);border-bottom:1px solid var(--rule)"></div>
+      <div class="info">
+        <div class="name">Paper</div>
+        <div class="vals">
+          <span>HEX  #FAFAF7</span>
+          <span>RGB  250 · 250 · 247</span>
+          <span>OKLCH 0.98 / 0.005 / 80</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 04 · Type ─────────── -->
+<section>
+  <h2>04 · Typography</h2>
+  <h3>Geist for everything. Geist Mono for code, captions, and metadata.</h3>
+  <p style="margin-bottom:32px">Geist is a clean geometric sans designed for product UI. The wordmark is set in Geist Medium with -2% tracking. Mono captions add an engineered counterpoint.</p>
+
+  <div style="border-top:1px solid var(--rule); margin-top:32px">
+    <div class="type-row">
+      <div class="role">Wordmark</div>
+      <div style="font-family:'Geist'; font-weight:500; font-size:64px; letter-spacing:-1.3px; line-height:1">p2pai</div>
+      <div class="specs">Geist Medium<br/>-2% tracking<br/>cap-aligned</div>
+    </div>
+    <div class="type-row">
+      <div class="role">Display / H1</div>
+      <div style="font-family:'Geist'; font-weight:500; font-size:48px; letter-spacing:-1.5px; line-height:1.05">Two peers, exchanging.</div>
+      <div class="specs">Geist Medium<br/>48 / 56<br/>-1.5 tracking</div>
+    </div>
+    <div class="type-row">
+      <div class="role">Body</div>
+      <div style="font-family:'Geist'; font-weight:400; font-size:18px; line-height:1.55; max-width:50ch">A peer-to-peer AI network — one node sends, one receives, and the protocol stays out of the way. Open weights, open routes, open compute.</div>
+      <div class="specs">Geist Regular<br/>18 / 28<br/>0 tracking</div>
+    </div>
+    <div class="type-row">
+      <div class="role">Mono / Caption</div>
+      <div style="font-family:'Geist Mono'; font-size:13px; letter-spacing:0.04em; text-transform:uppercase">v0.42.1 · 2 peers online · 3.2 MB/s</div>
+      <div class="specs">Geist Mono<br/>13 / 20<br/>+4% tracking, uppercase</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 05 · Clear space ─────────── -->
+<section>
+  <h2>05 · Clear Space</h2>
+  <h3>Reserve a peer-radius of breathing room around the lockup.</h3>
+  <p style="margin-bottom:32px">Use the radius of one peer disc (x) as the minimum clear space on all sides. Do not let other elements, edges, or images cross into this zone.</p>
+
+  <div class="card spacing-card">
+    <div class="surface" style="background:var(--paper-warm); flex-direction:column;">
+      <div class="clear-zone">
+        <img src="svg/lockup-horizontal/horizontal-color.svg" width="380" height="auto" alt="Lockup with clear space" />
+      </div>
+      <div style="margin-top:16px; font-family:'Geist Mono', monospace; font-size:11px; color:var(--ink-soft); letter-spacing:0.08em; text-transform:uppercase">Min. clear space = 1× peer radius (x)</div>
+    </div>
+    <div class="label"><span>Clear space</span><span>05·a</span></div>
+  </div>
+</section>
+
+<!-- ─────────── 06 · Do / Don't ─────────── -->
+<section>
+  <h2>06 · Do / Don't</h2>
+  <h3>Keep the geometry. Keep the palette. Keep the diamond solid.</h3>
+
+  <div class="grid-3" style="margin-top:32px">
+    <div class="card rule-card">
+      <div class="surface">
+        <img src="svg/lockup-horizontal/horizontal-color.svg" width="320" alt="Do" />
+      </div>
+      <div class="label good"><span class="check">✓ DO</span><span>USE THE FULL-COLOR LOCKUP</span></div>
+    </div>
+    <div class="card rule-card">
+      <div class="surface" style="filter: hue-rotate(120deg)">
+        <img src="svg/lockup-horizontal/horizontal-color.svg" width="320" alt="Don't" />
+      </div>
+      <div class="label bad"><span class="cross">✗ DON'T</span><span>RECOLOR THE PEERS</span></div>
+    </div>
+    <div class="card rule-card">
+      <div class="surface">
+        <svg viewBox="0 0 160 80" width="200" height="100" fill="none">
+          <path d="M 38 36 Q 80 6 120 34" stroke="var(--ink)" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 120 34 L 108 26 L 112 36 L 106 42 Z" fill="var(--ink)"/>
+          <path d="M 122 46 Q 80 74 40 46" stroke="var(--ink)" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 40 46 L 52 54 L 48 44 L 54 38 Z" fill="var(--ink)"/>
+          <circle cx="24" cy="40" r="14" fill="var(--sapphire)"/>
+          <circle cx="136" cy="40" r="14" fill="var(--ruby)"/>
+          <g transform="translate(80 40) rotate(45)"><rect x="-8" y="-8" width="16" height="16" fill="none" stroke="var(--ink)" stroke-width="2"/></g>
+        </svg>
+      </div>
+      <div class="label bad"><span class="cross">✗ DON'T</span><span>OUTLINE THE DIAMOND — KEEP IT SOLID</span></div>
+    </div>
+    <div class="card rule-card">
+      <div class="surface" style="background:var(--paper-warm)">
+        <img src="svg/mark/mark-mono-ink.svg" width="240" alt="Do mono" />
+      </div>
+      <div class="label good"><span class="check">✓ DO</span><span>USE MONO IN SINGLE-COLOR PRINT</span></div>
+    </div>
+    <div class="card rule-card">
+      <div class="surface">
+        <img src="svg/lockup-horizontal/horizontal-color.svg" width="320" style="transform: rotate(-8deg)" alt="Don't rotate" />
+      </div>
+      <div class="label bad"><span class="cross">✗ DON'T</span><span>ROTATE OR SKEW THE LOCKUP</span></div>
+    </div>
+    <div class="card rule-card">
+      <div class="surface">
+        <img src="svg/lockup-horizontal/horizontal-color.svg" width="320" style="transform: scaleX(1.3)" alt="Don't stretch" />
+      </div>
+      <div class="label bad"><span class="cross">✗ DON'T</span><span>STRETCH OR DISTORT</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 07 · App icons ─────────── -->
+<section>
+  <h2>07 · App Icon</h2>
+  <h3>Three official treatments.</h3>
+  <p style="margin-bottom:32px">Default to the gradient icon. Use ink for monochrome platforms (Apple Watch, dark menu bars). Paper is the fallback for light-dominant contexts.</p>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="surface" style="background:var(--paper-warm); padding:32px">
+        <img src="svg/app-icon/icon-gradient.svg" width="160" height="160" alt="App icon · gradient" style="border-radius:35px;box-shadow:0 12px 32px rgba(28,27,24,0.18)"/>
+      </div>
+      <div class="label"><span>Gradient · default</span><span>07·a</span></div>
+    </div>
+    <div class="card">
+      <div class="surface" style="background:var(--paper-warm); padding:32px">
+        <img src="svg/app-icon/icon-ink.svg" width="160" height="160" alt="App icon · ink" style="border-radius:35px;box-shadow:0 12px 32px rgba(28,27,24,0.18)"/>
+      </div>
+      <div class="label"><span>Ink · monochrome</span><span>07·b</span></div>
+    </div>
+    <div class="card">
+      <div class="surface" style="background:var(--paper-warm); padding:32px">
+        <img src="svg/app-icon/icon-paper.svg" width="160" height="160" alt="App icon · paper" style="border-radius:35px;box-shadow:0 12px 32px rgba(28,27,24,0.18)"/>
+      </div>
+      <div class="label"><span>Paper · light fallback</span><span>07·c</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── 08 · Files / Figma ─────────── -->
+<section>
+  <h2>08 · Files & Figma Import</h2>
+  <h3>Drag any SVG into Figma. They come in as editable vector layers.</h3>
+  <p style="margin-bottom:32px">Open Figma, then drag the SVG file from Finder/Explorer onto the canvas (or use <span class="mono">Place image</span>). Each lockup arrives as a group of paths — peers, arcs, diamond, and wordmark — ready to recolor or recombine.</p>
+
+  <div class="files">
+<span class="dir">svg/</span>
+  <span class="dir">mark/</span>
+    mark-color.svg            <span class="dim">— peers in Sapphire/Ruby, ink arcs + diamond</span>
+    mark-color-dark.svg       <span class="dim">— for dark backgrounds (paper arcs/diamond)</span>
+    mark-mono-ink.svg         <span class="dim">— single-color (ink) for paper bg</span>
+    mark-mono-paper.svg       <span class="dim">— single-color (paper) for dark bg</span>
+  <span class="dir">lockup-horizontal/</span>
+    horizontal-color.svg      <span class="dim">— mark + p2pai wordmark, side by side</span>
+    horizontal-color-dark.svg
+    horizontal-mono-ink.svg
+    horizontal-mono-paper.svg
+  <span class="dir">lockup-stacked/</span>
+    stacked-color.svg         <span class="dim">— mark on top, wordmark below (PRIMARY)</span>
+    stacked-color-dark.svg
+    stacked-mono-ink.svg
+    stacked-mono-paper.svg
+  <span class="dir">app-icon/</span>
+    icon-gradient.svg         <span class="dim">— 512×512, gradient bg</span>
+    icon-ink.svg              <span class="dim">— 512×512, ink bg</span>
+    icon-paper.svg            <span class="dim">— 512×512, paper bg</span>
+  favicon.svg                 <span class="dim">— compact 64×32 mark</span>
+  </div>
+
+  <div style="margin-top:32px; padding:24px; background:var(--paper-warm); border-radius:12px;">
+    <div class="eyebrow" style="margin-bottom:8px">Figma import tips</div>
+    <ul style="margin:0; padding-left:20px; line-height:1.7; color:var(--ink-soft);">
+      <li>Drag SVGs directly onto the Figma canvas — they import as editable vector groups.</li>
+      <li>Install <span class="mono">Geist</span> from Google Fonts before opening; otherwise Figma will substitute the wordmark font.</li>
+      <li>To re-style: select the peer circle, change fill — colors are not linked across files.</li>
+      <li>For brand variables: in Figma, create local color variables matching the hex codes in section 03.</li>
+    </ul>
+  </div>
+</section>
+
+</body>
+</html>

@@ -6,21 +6,20 @@ export default function HomePage() {
 
       {/* Hero */}
       <div className="text-center space-y-5 max-w-2xl">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-accent/20 bg-accent/[0.06] text-accent font-mono text-[11px] tracking-widest uppercase mb-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-          Tempo · Supabase · MPP
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] text-dim font-mono text-[11px] tracking-widest uppercase mb-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+          Moderato testnet
         </div>
 
         <h1 className="text-4xl sm:text-[2.75rem] font-semibold tracking-tight text-ink leading-[1.15]">
           Crypto ↔ fiat settlement.
           <br />
-          <span className="text-accent">Trustless p2p agentic market.</span>
+          <span className="text-accent">Peer-to-peer. Agentic.</span>
         </h1>
 
         <p className="text-dim text-[15px] leading-relaxed max-w-lg mx-auto">
-          An AI agent settles trades between unknown counterparties.
-          Funds held in virtual addresses on Tempo.
-          Released only after both parties confirm fiat payment.
+          An AI agent coordinates trades between unknown counterparties.
+          USDC held in Tempo Virtual Addresses — released only after both parties confirm fiat payment.
         </p>
       </div>
 
@@ -50,13 +49,14 @@ export default function HomePage() {
           </span>
         </div>
         <div className="px-4 py-4 font-mono text-xs space-y-2 leading-relaxed">
-          <FlowLine n="01" text="seller deposits USDC → virtual address"    hi />
-          <FlowLine n="02" text="agent detects Transfer event on-chain" />
-          <FlowLine n="03" text="buyer sends USD via Zelle / Venmo / bank"  hi />
-          <FlowLine n="04" text="buyer marks payment sent on trade page"     hi />
-          <FlowLine n="05" text="seller confirms USD received" />
-          <FlowLine n="06" text="agent releases USDC on-chain to buyer"      hi />
-          <FlowLine n="07" text="both parties rate — trade complete" />
+          <FlowLine n="01" text="seller posts order · pays 0.1 USDC maker fee"  hi />
+          <FlowLine n="02" text="buyer matches · pays 0.1 USDC taker fee" />
+          <FlowLine n="03" text="seller deposits USDC → virtual escrow address"  hi />
+          <FlowLine n="04" text="buyer sends fiat via Zelle / Venmo / wire"      hi />
+          <FlowLine n="05" text="buyer marks payment sent on trade page" />
+          <FlowLine n="06" text="seller confirms fiat received"                  hi />
+          <FlowLine n="07" text="agent releases USDC on-chain to buyer"          hi />
+          <FlowLine n="08" text="both parties rate · trade complete" />
         </div>
       </div>
 

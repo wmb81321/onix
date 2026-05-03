@@ -193,9 +193,9 @@ export function OrderBookClient({ initialOrders }: { initialOrders: Order[] }) {
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-mono text-xs transition-colors ${
                 filter === key
                   ? key === 'sell'
-                    ? 'bg-accent/15 text-accent font-semibold'
+                    ? 'bg-sell/15 text-sell font-semibold'
                     : key === 'buy'
-                      ? 'bg-caution/15 text-caution font-semibold'
+                      ? 'bg-accent/15 text-accent font-semibold'
                       : 'bg-white/[0.08] text-ink font-semibold'
                   : 'text-dim hover:text-ink'
               }`}
@@ -281,7 +281,7 @@ export function OrderBookClient({ initialOrders }: { initialOrders: Order[] }) {
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className={`font-mono text-[10px] uppercase tracking-widest font-semibold ${isSell ? 'text-accent' : 'text-caution'}`}>
+                          <span className={`font-mono text-[10px] uppercase tracking-widest font-semibold ${isSell ? 'text-sell' : 'text-accent'}`}>
                             {o.type}
                           </span>
                           {isOwn && (
@@ -303,8 +303,8 @@ export function OrderBookClient({ initialOrders }: { initialOrders: Order[] }) {
                             disabled={isMatching || !address}
                             className={`px-3 py-1 rounded-md font-mono text-[10px] uppercase tracking-widest transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                               isSell
-                                ? 'bg-accent/10 text-accent hover:bg-accent/20'
-                                : 'bg-caution/10 text-caution hover:bg-caution/20'
+                                ? 'bg-sell/10 text-sell hover:bg-sell/20'
+                                : 'bg-accent/10 text-accent hover:bg-accent/20'
                             }`}
                           >
                             {isMatching ? '…' : isSell ? 'Buy' : 'Sell'}

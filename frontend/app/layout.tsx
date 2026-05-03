@@ -1,34 +1,31 @@
 import type { Metadata } from 'next'
-import { Inter, JetBrains_Mono } from 'next/font/google'
+import { GeistSans } from 'geist/font/sans'
+import { GeistMono } from 'geist/font/mono'
 import Link from 'next/link'
 import { Providers } from './providers'
 import { ConnectButton } from '@/components/connect-button'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
-const mono  = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', weight: ['400', '500', '600'] })
-
 export const metadata: Metadata = {
-  title: 'Convexo P2P',
-  description: 'Trustless P2P crypto ↔ fiat settlement powered by Tempo and Supabase',
+  title: 'p2pai',
+  description: 'Peer-to-peer crypto ↔ fiat settlement. AI agent coordinates trades between unknown counterparties on Tempo.',
+  icons: { icon: '/brand-kit/svg/mark/mark-color.svg' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${mono.variable}`}>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body className="font-sans bg-canvas text-ink antialiased">
         <Providers>
           <div className="min-h-screen flex flex-col">
             <header className="border-b border-white/[0.07] px-6 h-14 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-50" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
-                </span>
-                <span className="font-mono text-xs font-medium tracking-[0.2em] text-ink/70 uppercase select-none">
-                  Convexo P2P
-                </span>
-              </div>
+              <Link href="/" className="flex items-center">
+                <img
+                  src="/brand-kit/svg/lockup-horizontal/horizontal-color-dark.svg"
+                  alt="p2pai"
+                  className="h-7 w-auto"
+                />
+              </Link>
               <div className="flex items-center gap-4">
                 <Link href="/orderbook" className="font-mono text-[11px] text-dim hover:text-ink transition-colors hidden sm:block">
                   Order Book

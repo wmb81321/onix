@@ -162,8 +162,8 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
                 className={`py-2 rounded-md font-mono text-xs uppercase tracking-widest transition-colors ${
                   type === t
                     ? t === 'sell'
-                      ? 'bg-accent text-canvas font-semibold'
-                      : 'bg-caution/20 text-caution font-semibold'
+                      ? 'bg-ruby text-paper font-semibold'
+                      : 'bg-accent/20 text-accent font-semibold'
                     : 'text-dim hover:text-ink'
                 }`}
               >

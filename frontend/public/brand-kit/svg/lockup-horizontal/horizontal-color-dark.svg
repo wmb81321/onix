@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 160" width="700" height="160" fill="none">
+  <g transform="translate(0 20) scale(1.5)">
+    <path d="M 38 36 Q 80 6 120 34" stroke="#fafaf7" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+  <path d="M 120 34 L 108 26 L 112 36 L 106 42 Z" fill="#fafaf7"></path>
+  <path d="M 122 46 Q 80 74 40 46" stroke="#fafaf7" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="1"></path>
+  <path d="M 40 46 L 52 54 L 48 44 L 54 38 Z" fill="#fafaf7" opacity="1"></path>
+  <circle cx="24" cy="40" r="14" fill="#1d3a8a"></circle>
+  <circle cx="136" cy="40" r="14" fill="#c41e3a"></circle>
+  <g transform="translate(80 40) rotate(45)"><rect x="-8" y="-8" width="16" height="16" fill="#fafaf7"></rect></g>
+  </g>
+  <text x="290" y="110" font-family="Geist, -apple-system, Helvetica, sans-serif" font-weight="500" font-size="96" letter-spacing="-2" fill="#fafaf7">p2pai</text>
+</svg>

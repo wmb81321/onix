@@ -163,7 +163,7 @@ export function AccountClient() {
               {orders.map((o) => (
                 <tr key={o.id} className="border-b border-white/[0.04]">
                   <td className="px-4 py-2.5">
-                    <span className={`font-mono text-[10px] uppercase tracking-widest font-semibold ${o.type === 'sell' ? 'text-accent' : 'text-caution'}`}>
+                    <span className={`font-mono text-[10px] uppercase tracking-widest font-semibold ${o.type === 'sell' ? 'text-sell' : 'text-accent'}`}>
                       {o.type}
                     </span>
                   </td>
@@ -206,7 +206,7 @@ export function AccountClient() {
                 return (
                   <tr key={t.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
                     <td className="px-4 py-2.5">
-                      <span className={`font-mono text-[10px] uppercase tracking-widest font-semibold ${role === 'seller' ? 'text-accent' : 'text-caution'}`}>
+                      <span className={`font-mono text-[10px] uppercase tracking-widest font-semibold ${role === 'seller' ? 'text-sell' : 'text-accent'}`}>
                         {role}
                       </span>
                     </td>
