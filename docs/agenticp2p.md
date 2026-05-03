@@ -1,10 +1,12 @@
 # p2pai — Architecture
 
-> **Status: current as of v1.3.0 (2026-05-01)**
+> **Status: superseded as of v2.0.0.**
 >
-> This document describes what was actually built. The original vision spec
-> (TEE, ERC-8004, Solidity escrow, Privy) was simplified for the MVP — those
-> components are in the Phase 13 backlog in ROADMAP.md.
+> This document describes the v1.x Stripe-based architecture. It is kept for historical reference only.
+> For the current v2.2.0 architecture, see:
+> - **[docs/agent-api.md](./agent-api.md)** — authoritative v2.2 API reference
+> - **[CLAUDE.md](../CLAUDE.md)** — full stack, trade state machine, and hard rules
+> - **[ROADMAP.md](../ROADMAP.md)** — phase plan and what was cut
 
 ---
 

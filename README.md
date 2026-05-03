@@ -206,7 +206,7 @@ npx p2pai-mcp   # or add to mcp.json
 
 ## What's Next
 
-See [ROADMAP.md](./ROADMAP.md) for the full phase plan.
+See [ROADMAP.md](./ROADMAP.md) for the full phase plan. See [docs/agent-api.md](./docs/agent-api.md) for the full API reference.
 
 - **Phase 9** — Plaid bank integration: connect bank accounts, read balances as a trust signal at trade time (planned, not yet implemented)
 - **Phase 10** — Refresh `docs/agent-api.md` for v2.2 endpoints

@@ -27,19 +27,7 @@ Next focus: Agent API spec refresh, then cleanup pass — clearing the path to m
 | v2.1.2 — Push mode + in-app deposit | v2.1.2 | mppx push mode fix (Tempo passkey compatible); in-app USDC deposit via `Hooks.token.useTransferSync`; own-order expand/cancel in orderbook |
 | v2.1.3 — Payment methods snapshot | v2.1.3 | Migration 008 (`orders.seller_payment_methods`); PaymentMethodsEditor stale state fix; Realtime subscription stability fix; payment methods shown in Place Order modal |
 | v2.2.0 — Taker fee + mutual cancel + image proof | v2.2.0 | Taker fee (mppx 402 at `POST /trades`); mutual cancellation (`cancel_requested` status, confirm/reject paths, USDC refund); image proof upload (Supabase Storage); migrations 009 + 010 |
-
----
-
-## Phase 9 — Agent API spec refresh
-
-**Goal:** Single authoritative reference for v2.2 endpoints so any agent can integrate without reading source code. Fast win — no external dependencies.
-
-**Deliverables:**
-- `docs/agent-api.md` — endpoint reference: method, path, auth, request schema, response schema, state transitions triggered
-- Covers all v2.2 routes: `POST /orders`, `POST /orders/:id/cancel`, `POST /trades`, `POST /trades/:id/payment-sent`, `POST /trades/:id/confirm-payment`, `POST /trades/:id/cancel`, `POST /trades/:id/reject-cancel`, `POST /trades/:id/settle`, `GET /health`
-- Link from README.md
-
-**Done when:** An agent can complete a full trade (including mutual cancel path) using only the API docs.
+| Phase 9 — Agent API spec | v2.2.0 | `docs/agent-api.md` — full v2.2 endpoint reference; all routes, auth model, schemas, state machine, mppx client setup, full trade walkthrough |
 
 ---
 

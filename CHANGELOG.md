@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.2.1] — 2026-05-03
+
+### Added
+- **`docs/agent-api.md`** — full v2.2 API reference: all endpoints, auth model, request/response schemas, state machine diagram, mppx client setup, full trade walkthrough including mutual cancel path
+- **p2pai rename** — all package names, MCP server identity, and env vars renamed from `convexo-p2p*` → `p2pai*` / `CONVEXO_*` → `P2PAI_*`
+- `docs/agenticp2p.md` marked as superseded with links to current docs
+
+---
+
 ## [2.2.0] — 2026-05-03
 
 ### Added
