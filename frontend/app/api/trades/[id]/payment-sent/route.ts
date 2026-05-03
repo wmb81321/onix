@@ -6,8 +6,7 @@ export async function POST(
 ) {
   const { id } = await params
   const agentUrl = process.env.FACILITATOR_URL
-  const apiKey   = process.env.AGENT_API_KEY
-  if (!agentUrl || !apiKey) {
+  if (!agentUrl) {
     return NextResponse.json({ error: 'Agent not configured' }, { status: 503 })
   }
 
@@ -17,10 +16,7 @@ export async function POST(
   try {
     res = await fetch(`${agentUrl}/trades/${id}/payment-sent`, {
       method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
   } catch {

@@ -23,7 +23,7 @@ export function AccountClient() {
 
   const { mutate: fund, isPending: funding } = Hooks.faucet.useFundSync({
     mutation: {
-      onSuccess: () => { void refetchBalances() },
+      onSuccess: () => { refetchBalances() },
     },
   })
 

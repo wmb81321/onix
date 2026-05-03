@@ -18,7 +18,7 @@ async function main() {
   console.log('[agent] Supabase connected ✓')
   console.log('[agent] Environment validated ✓')
 
-  const router = createRouter(ENV.AGENT_API_KEY)
+  const router = createRouter()
 
   router.get('/health', async (_req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' })

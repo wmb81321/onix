@@ -15,7 +15,7 @@ type Route = {
 
 export type Router = ReturnType<typeof createRouter>
 
-export function createRouter(apiKey?: string) {
+export function createRouter() {
   const routes: Route[] = []
 
   function register(method: string, path: string, handler: RouteHandler) {
@@ -33,20 +33,9 @@ export function createRouter(apiKey?: string) {
     async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
       const url    = (req.url ?? '/').split('?')[0] ?? '/'
       const method = req.method ?? 'GET'
-
-      // Bearer auth — exempt /health and POST /orders (mppx x402 payment = auth)
-      if (apiKey) {
-        const exempt = url === '/health'
-          || url === '/orders'
-        if (!exempt) {
-          const authHeader = req.headers['authorization']
-          if (!authHeader || authHeader !== `Bearer ${apiKey}`) {
-            res.writeHead(401, { 'Content-Type': 'application/json' })
-            res.end(JSON.stringify({ error: 'Unauthorized' }))
-            return
-          }
-        }
-      }
+      // No global Bearer auth gate — each endpoint enforces identity via:
+      //   POST /orders     → mppx x402 payment = auth
+      //   all others       → wallet address in request body must match trade/order row
 
       for (const route of routes) {
         if (route.method !== method) continue

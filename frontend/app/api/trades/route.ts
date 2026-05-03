@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   const agentUrl = process.env.FACILITATOR_URL
-  const apiKey   = process.env.AGENT_API_KEY
-  if (!agentUrl || !apiKey) {
+  if (!agentUrl) {
     return NextResponse.json({ error: 'Agent not configured' }, { status: 503 })
   }
 
@@ -13,10 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     res = await fetch(`${agentUrl}/trades`, {
       method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
   } catch (e) {
