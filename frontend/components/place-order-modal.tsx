@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount } from 'wagmi'
+import { useAccount, useWalletClient } from 'wagmi'
 import { Hooks } from 'wagmi/tempo'
 import { formatUnits } from 'viem'
 import Link from 'next/link'
+import { Mppx as MppxClient, tempo as mppxTempo } from 'mppx/client'
 import { BalanceDisplay, PATHUSDC } from './balance-display'
 
 type OrderType = 'buy' | 'sell'
@@ -17,6 +18,7 @@ interface Props {
 
 export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
   const { address } = useAccount()
+  const { data: walletClient } = useWalletClient()
   const [type,       setType]       = useState<OrderType>('sell')
   const [usdcAmount, setUsdcAmount] = useState('')
   const [rate,       setRate]       = useState('1.00')
@@ -46,14 +48,22 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
   const rateNum = parseFloat(rate)       || 0
   const usd     = usdc * rateNum
 
+  // Service fee charged via x402 — 0.1 USDC paid from user's connected wallet
+  const SERVICE_FEE = 0.1
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!address) { setError('Connect your wallet first'); return }
+    if (!walletClient) { setError('Wallet not ready — try again'); return }
     if (usdc < 5)  { setError('Minimum order is 5 USDC');  return }
     if (rateNum <= 0) { setError('Rate must be positive'); return }
 
-    if (type === 'sell' && balanceUsdc !== null && usdc > balanceUsdc) {
-      setError(`Insufficient balance — you have ${balanceUsdc.toFixed(2)} USDC. Fund your wallet from the Account page.`)
+    // For SELL orders, user needs USDC to deposit + the 0.1 fee.
+    // For BUY orders, user only needs the 0.1 fee (fiat is off-platform).
+    const required = type === 'sell' ? usdc + SERVICE_FEE : SERVICE_FEE
+    if (balanceUsdc !== null && balanceUsdc < required) {
+      const what = type === 'sell' ? `${usdc} USDC + ${SERVICE_FEE} fee` : `${SERVICE_FEE} USDC service fee`
+      setError(`Insufficient balance — need ${what}. Fund your wallet from the Account page.`)
       return
     }
 
@@ -61,7 +71,13 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
     setError(null)
 
     try {
-      const res = await fetch('/api/orders', {
+      // mppx/client intercepts the 402 challenge from the agent, signs the payment
+      // with the user's connected Tempo wallet, then retries automatically.
+      const mppx = MppxClient.create({
+        methods: [mppxTempo.charge({ getClient: () => walletClient as never })],
+        polyfill: false,
+      })
+      const res = await mppx.fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -76,8 +92,9 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
       onCreated(data.id!)
       setPlaced(true)
       setTimeout(onClose, 2000)
-    } catch {
-      setError('Network error — please try again')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(msg.includes('rejected') ? 'Payment cancelled' : 'Network error — please try again')
     } finally {
       setSubmitting(false)
     }
@@ -197,7 +214,10 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
           )}
 
           <p className="font-mono text-[10px] text-dim/40 text-center">
-            Min. 5 USDC · 24h expiry · counterparties pay each other directly
+            Min. 5 USDC · 24h expiry · 0.1 USDC service fee · counterparties pay each other directly
+          </p>
+          <p className="font-mono text-[10px] text-caution/50 text-center">
+            Service fee is non-refundable if your order expires unmatched or is cancelled.
           </p>
 
           {placed ? (
@@ -211,7 +231,7 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
               disabled={submitting || !address}
               className="w-full py-2.5 rounded-lg bg-accent text-canvas text-sm font-semibold font-mono hover:bg-accent-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Placing…' : !address ? 'Connect wallet' : 'Place Order'}
+              {submitting ? 'Approving 0.1 USDC fee…' : !address ? 'Connect wallet' : 'Place Order (0.1 USDC fee)'}
             </button>
           )}
 

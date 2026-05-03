@@ -40,16 +40,26 @@ export type Database = {
           status: Database['public']['Enums']['order_status']
           expires_at: string
           created_at: string
+          virtual_deposit_address: string | null
+          service_fee_paid_at: string | null
+          service_fee_tx_hash: string | null
         }
         Insert: {
+          id?: string
           user_address: string
           type: Database['public']['Enums']['order_type']
           usdc_amount: number
           usd_amount: number
           rate: number
+          virtual_deposit_address?: string | null
+          service_fee_paid_at?: string | null
+          service_fee_tx_hash?: string | null
         }
         Update: {
           status?: Database['public']['Enums']['order_status']
+          virtual_deposit_address?: string | null
+          service_fee_paid_at?: string | null
+          service_fee_tx_hash?: string | null
         }
         Relationships: [
           {

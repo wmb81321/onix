@@ -61,7 +61,11 @@ export const OrderRowSchema = z.object({
   status:       OrderStatusSchema,
   expires_at:   z.string(),
   created_at:   z.string(),
-})
+  // Migration 007 — per-order virtual deposit address + fee receipt
+  virtual_deposit_address: z.string().nullable().optional(),
+  service_fee_paid_at:     z.string().nullable().optional(),
+  service_fee_tx_hash:     z.string().nullable().optional(),
+}).passthrough()
 export type OrderRow = z.infer<typeof OrderRowSchema>
 
 // ── User ─────────────────────────────────────────────────────────────────────

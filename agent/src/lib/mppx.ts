@@ -6,9 +6,9 @@
  *
  * Usage in a Node.js route handler:
  *
- *   const result = await chargeServiceFee(req, res, tradeId)
+ *   const result = await chargeServiceFee(req, res, orderId)
  *   if (result.status === 402) return   // challenge written to res, done
- *   // result.status === 200 → fee received, proceed with settlement
+ *   // result.status === 200 → fee received, proceed
  */
 
 import { Mppx, tempo } from 'mppx/server'
@@ -35,18 +35,18 @@ const mppx = Mppx.create({
 export type ChargeResult = { status: 402 } | { status: 200 }
 
 /**
- * Charge the 0.1 USDC service fee for a trade.
+ * Charge the 0.1 USDC service fee.
  * Writes a 402 challenge to `res` automatically if payment is pending.
- * `externalId: tradeId` ensures retries never double-charge.
+ * Pass the order ID (or trade ID for legacy paths) as `externalId` — ensures retries never double-charge.
  */
 export async function chargeServiceFee(
   req: IncomingMessage,
   res: ServerResponse,
-  tradeId: string,
+  externalId: string,
 ): Promise<ChargeResult> {
   const handler = mppx['tempo/charge']({
     amount: ENV.CHARGE_AMOUNT_USDC.toString(),
-    externalId: tradeId,
+    externalId,
   })
 
   const result = await Mppx.toNodeListener(handler)(req, res)

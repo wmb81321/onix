@@ -23,9 +23,9 @@ dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '../../../.e
 import { VirtualAddress } from 'ox/tempo'
 import { keccak256, toBytes, toHex } from 'viem'
 
-export function deriveDepositAddress(masterId: `0x${string}`, tradeId: string): `0x${string}` {
-  // Hash tradeId to get a deterministic 6-byte userTag — works for UUIDs and any string
-  const hash = keccak256(toBytes(tradeId))
+export function deriveDepositAddress(masterId: `0x${string}`, entityId: string): `0x${string}` {
+  // Hash entityId (order ID or any UUID) to get a deterministic 6-byte userTag
+  const hash = keccak256(toBytes(entityId))
   const userTag = toHex(toBytes(hash).slice(0, 6))
   return VirtualAddress.from({ masterId, userTag }) as `0x${string}`
 }
@@ -87,7 +87,7 @@ if (process.argv.includes('--verify')) {
   const masterId = process.env.AGENT_MASTER_ID as `0x${string}` | undefined
   if (!masterId) throw new Error('AGENT_MASTER_ID not set — run --setup first')
 
-  const testIds = ['test-trade-001', 'test-trade-002', 'test-trade-003']
+  const testIds = ['test-order-001', 'test-order-002', 'test-order-003']
   console.log(`Derived deposit addresses (masterId=${masterId}):`)
   for (const id of testIds) {
     console.log(`  ${id} → ${deriveDepositAddress(masterId, id)}`)

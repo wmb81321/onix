@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase-server'
-import { z } from 'zod'
 import type { Database } from '@/lib/database.types'
 
 type OrderStatus = Database['public']['Enums']['order_status']
@@ -26,48 +25,39 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data ?? [])
 }
 
-const MIN_USDC = 5
-
-const schema = z.object({
-  user_address: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
-  type:         z.enum(['buy', 'sell']),
-  usdc_amount:  z.number().min(MIN_USDC, `Minimum order is ${MIN_USDC} USDC`),
-  rate:         z.number().positive('Rate must be positive'),
-})
-
+// POST /api/orders — proxy to agent with transparent 402 passthrough.
+// The agent's POST /orders endpoint is mppx-gated: it returns 402 if the caller
+// hasn't yet paid the 0.1 USDC service fee. The browser's mppx/client intercepts
+// the 402, signs and submits the payment, then retries — this proxy must relay
+// all 402 headers verbatim so the handshake works end-to-end.
 export async function POST(req: NextRequest) {
-  const parsed = schema.safeParse(await req.json())
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? 'Invalid input' },
-      { status: 400 },
-    )
+  const agentUrl = process.env.FACILITATOR_URL
+  if (!agentUrl) {
+    return NextResponse.json({ error: 'Agent not configured' }, { status: 503 })
   }
 
-  const { user_address, type, usdc_amount, rate } = parsed.data
-  const usd_amount = Math.round(usdc_amount * rate * 100) / 100
+  // Relay x-payment header from the mppx client on retry
+  const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+  const xPayment = req.headers.get('x-payment')
+  if (xPayment) forwardHeaders['x-payment'] = xPayment
+  const wwwAuth = req.headers.get('www-authenticate')
+  if (wwwAuth) forwardHeaders['www-authenticate'] = wwwAuth
 
-  let db: ReturnType<typeof createServerClient>
-  try {
-    db = createServerClient()
-  } catch (e) {
-    return NextResponse.json({ error: 'Database not configured' }, { status: 503 })
+  const body = await req.text()
+  const agentRes = await fetch(`${agentUrl}/orders`, {
+    method: 'POST',
+    headers: forwardHeaders,
+    body,
+  })
+
+  const text = await agentRes.text()
+  const resHeaders = new Headers({ 'Content-Type': 'application/json' })
+
+  // Pass through all 402-related headers so mppx/client can parse the challenge
+  for (const header of ['www-authenticate', 'x-payment-response', 'x-payment-required', 'accept-payment']) {
+    const val = agentRes.headers.get(header)
+    if (val) resHeaders.set(header, val)
   }
 
-  // Ensure user row exists before inserting order (prevents FK violation on first order)
-  await db
-    .from('users')
-    .upsert({ address: user_address }, { onConflict: 'address', ignoreDuplicates: true })
-
-  const { data, error } = await db
-    .from('orders')
-    .insert({ user_address, type, usdc_amount, usd_amount, rate })
-    .select()
-    .single()
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json(data, { status: 201 })
+  return new NextResponse(text, { status: agentRes.status, headers: resHeaders })
 }

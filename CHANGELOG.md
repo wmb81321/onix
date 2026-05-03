@@ -2,11 +2,38 @@
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-05-03
+
+### Changed — x402 fee moved to order creation (per-order virtual address)
+
+- **Service fee gate moved**: 0.1 USDC x402 charge now happens at `POST /orders` (order creation) instead of `POST /trades/:id/settle`. The order creator pays once; fee is forfeited on cancel or expiry.
+- **Virtual deposit address is now per-order** (derived from `orderId`), not per-trade. The VA is written to `orders.virtual_deposit_address` at creation time; `POST /trades` reads it from the order row at match time.
+- `POST /orders` is now the public mppx-gated endpoint (payment = auth). `POST /trades/:id/settle` is now Bearer-authed and fee-free (deprecated; kept for backward compat with existing agent scripts).
+- `POST /orders/:id/cancel` (Bearer auth, owner-only) cancels an order DB-only; the on-chain VA persists, the 0.1 USDC fee is forfeited.
+- `deriveDepositAddress(masterId, entityId)` — param renamed from `tradeId` to `entityId`.
+- `chargeServiceFee(req, res, externalId)` — param renamed from `tradeId` to `externalId`.
+
+### Added
+
+- `supabase/migrations/007_order_deposit_address.sql` — adds `orders.virtual_deposit_address` (unique), `orders.service_fee_paid_at`, `orders.service_fee_tx_hash`; expires all legacy `open` orders with null VA.
+- `agent/src/routes/orders.ts` — `POST /orders` (mppx x402 gate) and `POST /orders/:id/cancel` (Bearer auth).
+- `frontend/app/api/orders/[id]/cancel/route.ts` — cancel proxy forwarding to agent with Bearer auth.
+- `mppx` added to `frontend/package.json` (v0.6.8) for browser-side 402 payment flow.
+
 ### Fixed
 
 - `frontend/lib/wagmi.ts` — `tempoWallet` now imported from `wagmi/connectors` (docs-correct) instead of `wagmi/tempo`.
 - `frontend/hooks/use-wallet-balances.ts` — new `useWalletBalances` hook calls `wallet_getBalances` RPC to return all token balances (pathUSD, AlphaUSD, BetaUSD, ThetaUSD), matching the full balance view in wallet.tempo.xyz.
 - `frontend/app/account/account-client.tsx` — balance section replaced: now shows every token balance returned by `wallet_getBalances` instead of pathUSD only; faucet refetch triggers a full wallet balance refresh.
+
+### Updated
+
+- `frontend/app/api/orders/route.ts` — POST handler now proxies to agent with transparent 402 passthrough instead of writing Supabase directly.
+- `frontend/components/place-order-modal.tsx` — uses `mppx/client` (`Mppx.create` + `tempo.charge`) for automatic 402 payment; balance check includes the 0.1 USDC fee; UI copy updated with fee disclosure and non-refundable warning.
+- `agent/src/lib/router.ts` — `/orders` (POST) is the new mppx-exempt endpoint; `/trades/:id/settle` moved to Bearer-auth.
+- `agent/src/index.ts` — registers `registerOrderRoutes`; version bumped to `2.1.0`.
+- `agent/src/lib/schemas.ts` — `OrderRowSchema` extended with `virtual_deposit_address`, `service_fee_paid_at`, `service_fee_tx_hash`.
+- `frontend/lib/database.types.ts` — `orders` Row/Insert/Update types extended with new columns.
 
 ### Docs
 

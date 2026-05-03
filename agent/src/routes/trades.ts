@@ -3,9 +3,7 @@ import { z } from 'zod'
 import type { Router } from '../lib/router.js'
 import { readJsonBody, json } from '../lib/router.js'
 import { db, updateTradeStatus } from '../lib/supabase.js'
-import { chargeServiceFee } from '../lib/mppx.js'
 import { markPaymentSent, confirmPayment } from '../flows/flowManual.js'
-import { deriveDepositAddress } from '../tempo/virtualAddresses.js'
 import { watchDeposit } from '../tempo/monitor.js'
 import { ENV } from '../lib/env.js'
 
@@ -18,6 +16,7 @@ const CreateTradeBody = z.object({
   usdc_amount:    z.number().positive(),
   usd_amount:     z.number().positive(),
 })
+
 
 const PaymentSentBody = z.object({
   buyer_address:     z.string().regex(/^0x[0-9a-fA-F]{40}$/i),
@@ -37,15 +36,15 @@ export function registerTradeRoutes(router: Router): void {
     const body = CreateTradeBody.parse(await readJsonBody(req))
 
     const deadline = new Date(Date.now() + DEPOSIT_TIMEOUT_MS).toISOString()
-    const masterId = ENV.AGENT_MASTER_ID as `0x${string}`
 
     // Atomically lock the order — concurrent requests find status != 'open' and get 409
+    // Select virtual_deposit_address set at order creation (migration 007).
     const { data: matchedOrder, error: matchError } = await db
       .from('orders')
       .update({ status: 'matched' })
       .eq('id', body.order_id)
       .eq('status', 'open')
-      .select('id')
+      .select('id, virtual_deposit_address')
       .maybeSingle()
 
     if (matchError) throw new Error(`Failed to match order: ${matchError.message}`)
@@ -54,8 +53,15 @@ export function registerTradeRoutes(router: Router): void {
       return
     }
 
+    if (!matchedOrder.virtual_deposit_address) {
+      // Legacy order created before migration 007 — no VA, cannot match.
+      await db.from('orders').update({ status: 'open' }).eq('id', body.order_id)
+      json(res, 409, { error: 'Order has no deposit address — cancel and re-create' })
+      return
+    }
+
     const tradeId = randomUUID()
-    const virtualAddress = deriveDepositAddress(masterId, tradeId)
+    const virtualAddress = matchedOrder.virtual_deposit_address as `0x${string}`
 
     await db.from('users').upsert(
       [{ address: body.buyer_address }, { address: body.seller_address }],
@@ -161,9 +167,9 @@ export function registerTradeRoutes(router: Router): void {
     }
   })
 
-  // POST /trades/:id/settle — x402 / mppx path for agent consumers
-  // Public endpoint — 0.1 USDC payment via MPP IS the auth.
-  // Marks payment_sent with method='x402', then requires confirm-payment to release USDC.
+  // POST /trades/:id/settle — deprecated; kept for backward compat with existing agent scripts.
+  // Service fee is now charged at order creation (POST /orders). This endpoint is now
+  // Bearer-authed and simply marks payment_sent with method='x402'. No charge is made here.
   router.post('/trades/:id/settle', async (req, res, params) => {
     const tradeId = params['id']
     if (!tradeId) { json(res, 400, { error: 'Missing trade id' }); return }
@@ -180,11 +186,6 @@ export function registerTradeRoutes(router: Router): void {
       return
     }
 
-    // Charge 0.1 USDC service fee via MPP — writes 402 challenge if not yet paid
-    const charge = await chargeServiceFee(req, res, tradeId)
-    if (charge.status === 402) return  // client must pay and retry
-
-    // Fee received — mark payment sent via x402
     await markPaymentSent(tradeId, 'x402', tradeId)
     json(res, 200, {
       status:    'payment_sent',
