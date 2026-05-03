@@ -36,12 +36,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Agent not configured' }, { status: 503 })
   }
 
-  // Relay x-payment header from the mppx client on retry
+  // Forward the mppx payment credential on retry (Authorization: Payment <credential>)
   const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
-  const xPayment = req.headers.get('x-payment')
-  if (xPayment) forwardHeaders['x-payment'] = xPayment
-  const wwwAuth = req.headers.get('www-authenticate')
-  if (wwwAuth) forwardHeaders['www-authenticate'] = wwwAuth
+  const authorization = req.headers.get('authorization')
+  if (authorization) forwardHeaders['authorization'] = authorization
 
   const body = await req.text()
   const agentRes = await fetch(`${agentUrl}/orders`, {

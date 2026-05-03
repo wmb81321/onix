@@ -74,7 +74,10 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
       // mppx/client intercepts the 402 challenge from the agent, signs the payment
       // with the user's connected Tempo wallet, then retries automatically.
       const mppx = MppxClient.create({
-        methods: [mppxTempo.charge({ getClient: () => walletClient as never })],
+        methods: [mppxTempo.charge({
+          getClient: () => walletClient as never,
+          mode: 'pull', // Tempo passkey wallet signs tx; push (wallet_sendCalls) is not supported
+        })],
         polyfill: false,
       })
       const res = await mppx.fetch('/api/orders', {
