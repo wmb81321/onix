@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- `frontend/lib/wagmi.ts` — `tempoWallet` now imported from `wagmi/connectors` (docs-correct) instead of `wagmi/tempo`.
+- `frontend/hooks/use-wallet-balances.ts` — new `useWalletBalances` hook calls `wallet_getBalances` RPC to return all token balances (pathUSD, AlphaUSD, BetaUSD, ThetaUSD), matching the full balance view in wallet.tempo.xyz.
+- `frontend/app/account/account-client.tsx` — balance section replaced: now shows every token balance returned by `wallet_getBalances` instead of pathUSD only; faucet refetch triggers a full wallet balance refresh.
+
 ### Docs
 
 - `CLAUDE.md` — full v2.0.0 rewrite: build status table, folder structure, stack, state machine, flow narrative, API surface, hard rules all aligned to direct-counterparty payment model.
