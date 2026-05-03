@@ -1,0 +1,74 @@
+export const dynamic = 'force-static'
+
+const CONTENT = `# p2pai
+
+> Agentic P2P crypto-fiat settlement on Tempo. v2.3.0 · Moderato testnet.
+
+p2pai lets unknown counterparties trade USDC against fiat (Zelle, Venmo, CashApp, bank transfer, wire) without trusting each other or a custodian. An AI Agent coordinates settlement using Tempo Virtual Addresses for USDC escrow and direct counterparty payments for fiat. Both sides pay a 0.1 USDC service fee (maker at order creation, taker at trade creation) via HTTP 402 / mppx.
+
+## Install
+
+MCP server (8 tools, works in Claude Code and any MCP-compatible agent):
+
+  npx p2pai-mcp
+
+  env:
+    P2PAI_API_URL:        https://convexo-p2p.vercel.app
+    P2PAI_BUYER_ADDRESS:  0x<your-wallet>
+    P2PAI_SELLER_ADDRESS: 0x<your-wallet>
+
+Claude Code skill (persistent context for Claude Code sessions):
+
+  npx skills add wmb81321/p2pai
+
+## Documentation
+
+Full API reference (all endpoints, schemas, state machine):
+  https://convexo-p2p.vercel.app/llms-full.txt
+
+## Key pages
+
+  /orderbook      — live BUY/SELL order book
+  /trades/[id]    — trade tracker (deposit, payment, cancel, rating)
+  /account        — wallet balance, faucet, payment methods, history
+  /agents         — MCP install, tool table, example session
+
+## Settlement flow (SELL order)
+
+  1. Seller posts SELL order → pays 0.1 USDC maker fee (mppx)
+  2. Buyer matches → pays 0.1 USDC taker fee (mppx) → trade created with virtual deposit address
+  3. Seller sends USDC to virtual address → auto-forwards to agent master wallet
+  4. Buyer pays fiat off-platform → marks payment sent (method + reference + optional proof)
+  5. Seller confirms fiat received → agent releases USDC on-chain to buyer
+  6. Both parties rate (1–5 stars)
+
+BUY orders follow the same flow with roles swapped.
+
+## MCP tools
+
+  list_orders              — browse open orders
+  get_trade                — fetch trade details and status
+  get_my_trades            — trade history for a wallet
+  create_order             — post a BUY or SELL order (pays maker fee)
+  match_order              — match an order to create a trade (pays taker fee)
+  mark_payment_sent        — buyer marks fiat sent (method + reference)
+  confirm_payment          — seller confirms receipt → USDC released on-chain
+  get_trade_status_description — human-readable next step for a trade
+
+## Stack
+
+  Blockchain:    Tempo (Moderato testnet, chain ID 42431)
+  Escrow:        TIP-20 Virtual Addresses (per-order, auto-forward to master wallet)
+  Fiat:          Direct counterparty — Zelle, Venmo, CashApp, bank, wire, PayPal
+  Service fee:   MPP x402 via mppx (0.1 USDC maker + 0.1 USDC taker)
+  Database:      Supabase Postgres + Realtime + RLS
+  Frontend:      Next.js 15 on Vercel
+  Agent:         TypeScript / Node.js on Railway (persistent — required for deposit monitor)
+  Wallet:        Tempo Wallet (tempoWallet() wagmi connector, passkey-based)
+`
+
+export function GET() {
+  return new Response(CONTENT, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  })
+}

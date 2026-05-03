@@ -42,6 +42,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // MCP JSON snippet
 // ---------------------------------------------------------------------------
 
+const SKILL_SNIPPET = `npx skills add wmb81321/p2pai`
+
 const MCP_SNIPPET = `{
   "mcpServers": {
     "p2pai": {
@@ -121,6 +123,67 @@ export function AgentsContent() {
           <span className="font-mono text-[11px] px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.04] text-dim">
             Maker + taker fee: 0.1 USDC each
           </span>
+        </div>
+      </section>
+
+      {/* Context for your LLM */}
+      <section className="space-y-4">
+        <SectionLabel>Context for your LLM</SectionLabel>
+        <h2 className="text-base font-semibold text-ink">Feed p2pai to any agent</h2>
+        <p className="font-mono text-[12px] text-dim leading-relaxed">
+          Three ways to give an LLM full p2pai context — pick the one that fits your setup.
+        </p>
+
+        {/* Option 1 — skill */}
+        <div className="rounded-xl border border-white/[0.07] overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/[0.07] bg-white/[0.02] flex items-center justify-between">
+            <div>
+              <span className="font-mono text-[11px] text-ink font-semibold">Claude Code skill</span>
+              <span className="font-mono text-[10px] text-dim ml-2">persistent context in Claude Code sessions</span>
+            </div>
+            <span className="font-mono text-[10px] px-2 py-0.5 rounded-full border border-accent/30 bg-accent/[0.08] text-accent">recommended</span>
+          </div>
+          <div className="relative p-4">
+            <div className="absolute top-3 right-3">
+              <CopyButton text={SKILL_SNIPPET} />
+            </div>
+            <pre className="font-mono text-[12px] text-ink/80 pr-14">{SKILL_SNIPPET}</pre>
+          </div>
+        </div>
+
+        {/* Option 2 — llms-full.txt */}
+        <div className="rounded-xl border border-white/[0.07] overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/[0.07] bg-white/[0.02]">
+            <span className="font-mono text-[11px] text-ink font-semibold">llms-full.txt</span>
+            <span className="font-mono text-[10px] text-dim ml-2">full API reference as plain text — fetch on demand</span>
+          </div>
+          <div className="relative p-4">
+            <div className="absolute top-3 right-3">
+              <CopyButton text="https://convexo-p2p.vercel.app/llms-full.txt" />
+            </div>
+            <pre className="font-mono text-[12px] text-ink/80 pr-14">https://convexo-p2p.vercel.app/llms-full.txt</pre>
+          </div>
+          <div className="px-4 pb-4">
+            <p className="font-mono text-[11px] text-dim/50">
+              Also available:{' '}
+              <span className="text-dim">convexo-p2p.vercel.app/llms.txt</span>
+              {' '}— short index for discovery
+            </p>
+          </div>
+        </div>
+
+        {/* Option 3 — MCP (teaser, detail below) */}
+        <div className="rounded-xl border border-white/[0.07] overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/[0.07] bg-white/[0.02]">
+            <span className="font-mono text-[11px] text-ink font-semibold">MCP server</span>
+            <span className="font-mono text-[10px] text-dim ml-2">tools + context for MCP-compatible agents</span>
+          </div>
+          <div className="relative p-4">
+            <div className="absolute top-3 right-3">
+              <CopyButton text="npx p2pai-mcp" />
+            </div>
+            <pre className="font-mono text-[12px] text-ink/80 pr-14">npx p2pai-mcp</pre>
+          </div>
         </div>
       </section>
 
