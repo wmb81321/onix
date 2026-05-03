@@ -7,19 +7,20 @@ Agentic P2P crypto-fiat settlement on Tempo. An AI Agent coordinates trades betw
 
 ---
 
-## What Works Today (v2.0.0 · Moderato Testnet)
+## What Works Today (v2.1.2 · Moderato Testnet)
 
-- **Order book** — live BUY/SELL orders with Supabase Realtime; filter by All/Buy/Sell
-- **Place orders** — any wallet can post a SELL or BUY order with USDC amount and rate (min 5 USDC)
+- **Order book** — live BUY/SELL orders with Supabase Realtime; filter by All/Buy/Sell; own orders expandable with cancel button
+- **Place orders** — pay 0.1 USDC service fee (mppx x402) → order created with per-order virtual deposit address; payment methods shown inline for SELL orders
 - **Match orders** — match a sell order to buy USDC, or match a buy order to sell USDC
+- **In-app USDC deposit** — seller taps "Send X USDC" on the trade page; `Hooks.token.useTransferSync` broadcasts the TIP-20 transfer from their connected wallet to the virtual deposit address (no copy-paste required)
 - **Full settlement** — seller deposits USDC → buyer pays fiat directly → USDC released on-chain
-- **Payment methods** — sellers register Zelle/Venmo/CashApp/bank/wire on `/account`; buyers see them on the trade page
-- **Payment confirmation** — buyer marks payment sent (method + reference + optional proof URL); seller confirms receipt → USDC released
-- **Trade tracker** — real-time status per trade with deposit instructions, payment forms, and progress stepper
+- **Payment methods** — sellers register Zelle/Venmo/CashApp/bank/wire on `/account`; shown in Place Order modal and on the trade page so buyers know how to pay
+- **Payment confirmation** — buyer marks payment sent (method + reference + optional proof URL); seller confirms receipt → USDC released on-chain
+- **Trade tracker** — real-time status per trade with deposit panel, payment forms, and progress stepper
 - **Ratings** — both parties rate each other (1–5 stars) after settlement; `rating_avg` tracked per user
-- **Account page** — all token balances via `wallet_getBalances`, in-app testnet faucet, payment methods editor, order/trade history
-- **In-app testnet faucet** — one-click test tokens via `Hooks.faucet.useFundSync` (pathUSD + AlphaUSD + BetaUSD + ThetaUSD)
-- **Agent-native settle path** — autonomous agents can call `POST /trades/:id/settle` with 0.1 USDC mppx fee; seller still confirms receipt manually
+- **Account page** — pathUSD balance via `Hooks.token.useGetBalance`, in-app testnet faucet, payment methods editor, order/trade history
+- **In-app testnet faucet** — one-click test tokens via `Hooks.faucet.useFundSync`
+- **Agent-native settle path** — autonomous agents can call `POST /trades/:id/settle` with Bearer auth; seller still confirms receipt manually
 - **MCP server** — `convexo-p2p-mcp` npm package with 8 tools; any Claude agent can add it to their `mcp.json` and trade autonomously
 
 ---
@@ -48,11 +49,14 @@ Both parties rate the trade (1–5 stars)
 
 BUY orders follow the same flow with roles swapped: order poster is buyer, matcher is seller.
 
-### Agent-native path (no UI, x402)
+### Agent-native path (no UI, Bearer auth)
 
 ```bash
-# Autonomous agent settles their own deposited trade by paying the 0.1 USDC service fee
-POST /trades/:id/settle   # mppx 402 challenge → pay 0.1 USDC → marks payment_sent
+# Autonomous agent places an order (pays 0.1 USDC service fee via mppx x402)
+POST /orders              # 402 challenge → pay 0.1 USDC via mppx → order created with VA
+
+# Agent matches an order and marks payment as sent (deprecated settle path)
+POST /trades/:id/settle   # Bearer auth (no fee) → marks payment_sent with method='x402'
 # Seller (human or agent) still confirms receipt manually
 POST /trades/:id/confirm-payment  # releases USDC on-chain
 ```
@@ -64,14 +68,15 @@ POST /trades/:id/confirm-payment  # releases USDC on-chain
 | Layer | Tech |
 |---|---|
 | Blockchain | Tempo (Moderato testnet, chain ID 42431) |
-| USDC escrow | TIP-20 Virtual Addresses (per-trade, auto-forward to master wallet) |
+| USDC escrow | TIP-20 Virtual Addresses (per-order, auto-forward to master wallet) |
 | Fiat payment | **Direct counterparty** — Zelle, Venmo, CashApp, bank transfer, wire, PayPal |
-| Service fee | MPP session via `mppx` (0.1 USDC, charged at `/settle`) |
+| Service fee | MPP x402 via `mppx` (0.1 USDC, charged at `POST /orders`; forfeited on cancel/expiry) |
 | Database | Supabase Postgres + Realtime + RLS |
 | Frontend | Next.js 15 App Router on Vercel |
 | Agent | TypeScript / Node.js on Railway (persistent server) |
-| Wallet | Tempo Wallet (`tempoWallet()` from `wagmi/connectors`) |
-| Balance | `wallet_getBalances` RPC (all tokens) + `Hooks.token.useGetBalance` (settlement token) |
+| Wallet | Tempo Wallet (`tempoWallet()` from `wagmi/connectors`) — passkey-based, push mode for mppx |
+| Balance | `Hooks.token.useGetBalance` from `wagmi/tempo` (pathUSD) |
+| In-app transfer | `Hooks.token.useTransferSync` from `wagmi/tempo` (USDC deposit to virtual address) |
 
 ---
 
@@ -111,33 +116,36 @@ railway variables set KEY=V  # set agent env var
 
 ```
 agent/
-  src/flows/flowManual.ts    markPaymentSent() + confirmPayment() — v2.0 settlement
-  src/routes/trades.ts       All HTTP route handlers (no webhooks.ts in v2.0)
+  src/flows/flowManual.ts    markPaymentSent() + confirmPayment() — manual settlement
+  src/routes/orders.ts       POST /orders (mppx x402 gate) + POST /orders/:id/cancel
+  src/routes/trades.ts       POST /trades, /payment-sent, /confirm-payment, /settle
   src/tempo/                 Virtual addresses, deposit monitor, on-chain transfers
   src/lib/                   env.ts, supabase.ts, mppx.ts, router.ts, schemas.ts
 
 frontend/
-  app/orderbook/             Live order book with filter tabs + match buttons
-  app/trades/[id]/           Trade tracker — deposit instructions, payment forms, rating
-  app/account/               Wallet, all token balances, faucet, payment methods, history
+  app/orderbook/             Live order book — own orders expandable/cancellable, Realtime
+  app/trades/[id]/           Trade tracker — in-app deposit button, payment forms, rating
+  app/account/               pathUSD balance, faucet, payment methods, order/trade history
   app/api/                   Server-side proxy routes → Railway agent + Supabase reads
-  components/                PaymentSentForm, ConfirmPaymentPanel, PaymentMethodsEditor,
-                             PlaceOrderModal, BalanceDisplay, ConnectButton, AgentsContent
-  hooks/
-    use-wallet-balances.ts   wallet_getBalances hook — all token balances
+  components/
+    place-order-modal.tsx    mppx/client 402 payment; payment methods shown for SELL orders
+    payment-sent-form.tsx    Buyer marks fiat sent (method + reference + proof URL)
+    confirm-payment-panel.tsx Seller confirms receipt → USDC released on-chain
+    payment-methods-editor.tsx Seller registers Zelle/Venmo/CashApp/Wire/Bank/PayPal/Other
+    balance-display.tsx      pathUSD balance via Hooks.token.useGetBalance
 
 scripts/
-  buyer-agent.ts             Polls for deposited trades → calls payment-sent automatically
+  buyer-agent.ts             Stale — needs rewrite for /payment-sent (was /link-pay)
 
 mcp-server/
   src/index.ts               convexo-p2p-mcp npm package — 8 MCP tools for agents
 
 supabase/
-  migrations/                006 migrations applied (manual payment flow, payment_methods)
+  migrations/                007 migrations applied (VA on orders, service_fee columns)
 
 docs/
   tempo/tempoSDK.md          Full Tempo Accounts SDK reference
-  agent-api.md               Agent HTTP API reference (pending refresh for v2.0)
+  agent-api.md               Agent HTTP API reference (pending refresh for v2.1)
 ```
 
 ---
@@ -184,8 +192,9 @@ npx convexo-p2p-mcp   # or add to mcp.json
 
 See [ROADMAP.md](./ROADMAP.md) for the full phase plan.
 
-- **Phase 9** — Refresh `docs/agent-api.md` for v2.0 endpoints
+- **Phase 9** — Refresh `docs/agent-api.md` for v2.1 endpoints
 - **Phase 10** — `scripts/seller-agent.ts` — auto-deposit on matched orders
-- **Phase 11** — `scripts/e2e-agentic.ts` — full headless trade test
-- **Phase 12** — Cleanup pass: drop legacy Stripe DB columns (migration 007), rebuild `agent/dist/`
-- **Phase 13** — Mainnet deploy (switch chain, real USDC)
+- **Phase 11** — Rewrite `scripts/buyer-agent.ts` for `/payment-sent` (was stale on removed `/link-pay`)
+- **Phase 12** — `scripts/e2e-agentic.ts` — full headless trade test
+- **Phase 13** — Cleanup pass: drop legacy Stripe DB columns (migration 008), rebuild `agent/dist/`
+- **Phase 14** — Mainnet deploy (switch chain, real USDC)

@@ -4,9 +4,9 @@ Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinate
 
 ---
 
-## Current Build Status (2026-05-03) — v2.1.1
+## Current Build Status (2026-05-03) — v2.1.2
 
-**x402 fee at order creation. No global Bearer gate — address-in-body = identity. Balance shows pathUSD via single Hooks.token.useGetBalance call.**
+**x402 fee at order creation. mppx push mode (Tempo passkey-compatible). In-app USDC deposit via Hooks.token.useTransferSync. Payment methods shown in Place Order modal.**
 
 | Layer | Status | Notes |
 |---|---|---|
@@ -16,7 +16,7 @@ Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinate
 | Agent wallet (EOA) | ✓ Funded | `0x6772787e16a7ea4c5307cc739cc5116b4b26ffc0` |
 | Railway agent | ✓ Live | v2.1.1 — no global Bearer gate; address-in-body auth |
 | Railway deploy method | ✓ Git-push | Repo: `wmb81321/onix`, root dir: `/agent`, builder: Dockerfile |
-| Vercel frontend | ✓ Live | v2.1.1 — balance fix (single pathUSD hook) |
+| Vercel frontend | ✓ Live | v2.1.2 — push mode fix, in-app deposit, payment methods in modal |
 | `POST /orders` (agent) | ✓ Live | Public — mppx x402 gate; creates order + VA; fee forfeited on cancel |
 | `POST /orders/:id/cancel` (agent) | ✓ Live | Address-verified (requester must be order creator), DB-only cancel |
 | `flowManual.ts` | ✓ Live | `markPaymentSent()` + `confirmPayment()` |
@@ -26,15 +26,16 @@ Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinate
 | `PaymentSentForm` component | ✓ Live | Buyer UI: method selector + reference + optional proof URL |
 | `ConfirmPaymentPanel` component | ✓ Live | Seller UI: shows buyer's payment details + confirm button |
 | `PaymentMethodsEditor` component | ✓ Live | Seller adds Zelle/Venmo/Wire/etc. on `/account` |
-| Order book | ✓ Live | BUY + SELL orders, filter tabs, Realtime, Match buttons |
-| Place order modal | ✓ Code ready | mppx/client 402 payment; 0.1 USDC fee balance check + forfeit warning |
-| Trade tracker | ✓ Live | Deposit address, PaymentSentForm, ConfirmPaymentPanel, rating widget |
+| Order book | ✓ Live | BUY + SELL orders, filter tabs, Realtime, own orders expand/cancel |
+| Place order modal | ✓ Live | mppx/client push mode; payment methods shown for SELL orders; balance check + fee warning |
+| Trade tracker | ✓ Live | In-app deposit button (`useTransferSync`), PaymentSentForm, ConfirmPaymentPanel, rating widget |
 | Account page | ✓ Live | Balance (native hook), faucet, payment methods editor, order/trade history |
 | Ratings | ✓ Live | 1-5 stars after released/complete, updates rating_avg |
 | BUY order matching | ✓ Live | Buyer/seller roles swapped correctly for BUY orders |
 | MCP server (`convexo-p2p-mcp`) | ✓ v2.0.0 | 8 tools — `mark_payment_sent`, `confirm_payment`, `settle_trade` etc. |
 | `/agents` page | ✓ Live | Developer install page — MCP snippet, tool table, example session |
 | Public `GET /api/orders` | ✓ Live | No-auth order listing; `?type=`, `?status=`, `?id=` query params |
+| mppx push mode | ✓ Fixed | `mode: 'push'` in `place-order-modal.tsx`; no `feePayer: true` in agent config — Tempo passkey wallets are incompatible with pull mode |
 | Stripe agent code | ✗ Removed | `agent/src/stripe/`, `agent/src/lib/link.ts`, `agent/src/routes/webhooks.ts`, `flowA.ts` deleted |
 | Stripe frontend routes | ✗ Stubbed (410) | `/api/stripe/*`, `/api/users/link-pm`, `/api/trades/[id]/{link-pay,auto-pay,payment-intent}` |
 | Stripe components | ✗ Stubbed | `BuyerPaymentForm`, `LinkPayButton`, `LinkPmSetup`, `SaveCardForm`, `StripeConnectButton` are now `export {}` |
@@ -58,10 +59,10 @@ Convexo P2P is an agentic P2P crypto-fiat settlement app. An AI Agent coordinate
 | `frontend/components/` | `PaymentSentForm`, `ConfirmPaymentPanel`, `PaymentMethodsEditor`, `PlaceOrderModal`, `BalanceDisplay`, `ConnectButton`, `AgentsContent` | Vercel |
 | `agent/` | TypeScript settlement runtime — HTTP server, state machine, deposit monitor | Railway (persistent) |
 | `agent/src/flows/` | `flowManual.ts` — `markPaymentSent` and `confirmPayment` | Railway |
-| `agent/src/routes/` | `trades.ts` — all HTTP routes (no more `webhooks.ts`) | Railway |
+| `agent/src/routes/` | `orders.ts` — POST /orders + cancel; `trades.ts` — payment-sent, confirm-payment, settle | Railway |
 | `agent/src/tempo/` | `wallet.ts`, `monitor.ts`, `chain.ts`, `virtualAddresses.ts` | Railway |
 | `agent/src/lib/` | `env.ts`, `mppx.ts`, `router.ts`, `schemas.ts`, `supabase.ts` (no `link.ts`) | Railway |
-| `supabase/` | SQL migrations (006 applied) + RLS policies | Supabase (production) |
+| `supabase/` | SQL migrations (007 applied) + RLS policies | Supabase (production) |
 | `scripts/` | `buyer-agent.ts` — currently stale; rewrite pending for v2.0 | Local / any Node host |
 | `mcp-server/` | `convexo-p2p-mcp` npm package — stdio MCP, 8 v2.0 tools | npm / `npx` |
 | `docs/` | Architecture references | — |
@@ -256,6 +257,8 @@ All transitions write Supabase BEFORE the side-effect runs.
 11. **`CHANGELOG.md` updated after every meaningful change.**
 12. **`Hooks.token.useGetBalance` from `wagmi/tempo`** for TIP-20 balance reads.
 13. **`Hooks.faucet.useFundSync` from `wagmi/tempo`** for testnet faucet.
+13a. **`Hooks.token.useTransferSync` from `wagmi/tempo`** for in-app TIP-20 transfers (e.g. seller deposit to virtual address). Never use raw `viem` `writeContract` for user-facing transfers — the hook handles passkey signing and gas sponsorship correctly.
+13b. **mppx client must use `mode: 'push'`** when the user wallet is a Tempo passkey wallet. Pull mode (`signTransaction` path) is incompatible — Tempo passkey wallets always attach a `feePayerSignature` using passkey crypto that Revm's ECDSA recovery cannot verify. Never set `mode: 'pull'` or remove `mode: 'push'` from `place-order-modal.tsx`. On the agent side, never set `feePayer: true` in `tempo.charge` — it causes `FeePayerValidationError: rejected fields: feePayerSignature`.
 14. **`POST /orders` is public** — mppx 0.1 USDC payment IS the auth. The fee is charged once at order creation and forfeited on cancel or expiry. `POST /trades/:id/settle` is **Bearer-auth only** (deprecated; no fee charged there anymore).
 15. **No global Bearer gate on payment endpoints.** `POST /orders/:id/cancel` verifies `requester_address` against `order.creator_address`; `POST /trades/:id/payment-sent` verifies `buyer_address`; `POST /trades/:id/confirm-payment` verifies `seller_address`. Address-in-body IS the identity proof — never re-add a global API key check to these routes.
 15a. **Virtual deposit address is per-order, not per-trade.** `deriveDepositAddress(masterId, orderId)` is called in `POST /orders`; `POST /trades` reads the VA from the order row. Never re-derive from `tradeId`.

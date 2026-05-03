@@ -9,6 +9,7 @@ import { Mppx as MppxClient, tempo as mppxTempo } from 'mppx/client'
 import { BalanceDisplay, PATHUSDC } from './balance-display'
 
 type OrderType = 'buy' | 'sell'
+type PaymentMethod = { type: string; label: string; value: string }
 
 interface Props {
   open: boolean
@@ -19,12 +20,13 @@ interface Props {
 export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
   const { address } = useAccount()
   const { data: walletClient } = useWalletClient()
-  const [type,       setType]       = useState<OrderType>('sell')
-  const [usdcAmount, setUsdcAmount] = useState('')
-  const [rate,       setRate]       = useState('1.00')
-  const [error,      setError]      = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [placed,     setPlaced]     = useState(false)
+  const [type,           setType]           = useState<OrderType>('sell')
+  const [usdcAmount,     setUsdcAmount]     = useState('')
+  const [rate,           setRate]           = useState('1.00')
+  const [error,          setError]          = useState<string | null>(null)
+  const [submitting,     setSubmitting]     = useState(false)
+  const [placed,         setPlaced]         = useState(false)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
 
   const { data: balanceRaw } = Hooks.token.useGetBalance({
     account: address,
@@ -43,6 +45,16 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
       setPlaced(false)
     }
   }, [open])
+
+  useEffect(() => {
+    if (!address || !open) return
+    void fetch(`/api/users/me?address=${address}`)
+      .then((r) => r.json())
+      .then((d: { payment_methods?: PaymentMethod[] }) => {
+        setPaymentMethods(d.payment_methods ?? [])
+      })
+      .catch(() => {})
+  }, [address, open])
 
   const usdc    = parseFloat(usdcAmount) || 0
   const rateNum = parseFloat(rate)       || 0
@@ -189,6 +201,38 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
               />
             </div>
           </label>
+
+          {/* Payment methods (SELL orders) */}
+          {type === 'sell' && (
+            <div className="space-y-1.5">
+              <span className="font-mono text-[10px] text-dim uppercase tracking-widest">
+                Your payment methods <span className="text-dim/50 normal-case">(how buyers pay you)</span>
+              </span>
+              {paymentMethods.length > 0 ? (
+                <div className="flex flex-col gap-1">
+                  {paymentMethods.map((m, i) => (
+                    <div key={i} className="flex items-center justify-between px-3 py-2 bg-canvas rounded-lg border border-white/[0.07]">
+                      <span className="font-mono text-[10px] text-dim uppercase tracking-widest">{m.type}</span>
+                      <span className="font-mono text-xs text-ink/70">{m.value}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between px-3 py-2.5 bg-caution/5 rounded-lg border border-caution/20">
+                  <span className="font-mono text-[10px] text-caution/80">
+                    No payment methods — buyers won&apos;t know how to pay you.
+                  </span>
+                  <Link
+                    href="/account"
+                    onClick={onClose}
+                    className="font-mono text-[10px] text-caution hover:text-caution/80 transition-colors underline underline-offset-2 shrink-0 ml-2"
+                  >
+                    Add →
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Computed output */}
           {usdc >= 5 && rateNum > 0 && (

@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.1.2] — 2026-05-03
+
+### Fixed — mppx push mode; orderbook realtime; in-app deposit
+
+- **mppx push mode** (`place-order-modal.tsx`): switched from implicit pull mode to explicit `mode: 'push'`. Pull mode is fundamentally incompatible with Tempo passkey wallets — the wallet always adds `feePayerSignature` via its internal fee payer service, which causes `Revm error: fee payer signature recovery failed` (ECDSA cannot verify passkey signatures). Push mode lets `wallet_sendCalls` handle the full transaction lifecycle; the mppx server verifies the on-chain tx hash only.
+- **Agent mppx config** (`agent/src/lib/mppx.ts`): reverted `feePayer: true` which caused `FeePayerValidationError: rejected fields: feePayerSignature`. The agent's `tempo.charge` no longer tries to co-sign a transaction that already carries the wallet's fee payer signature.
+- **Supabase Realtime filter** (`orderbook-client.tsx`): removed `status=eq.open` filter from the `postgres_changes` subscription — ENUM column comparisons were silently dropping all INSERT events. Filtering is now done client-side (`order.status === 'open'`).
+- **Own-order visibility**: `handleOrderCreated` now immediately fetches the newly-created order by ID via `GET /api/orders?id=<orderId>` and injects it into local state, so orders appear instantly without waiting for Realtime or a server re-render.
+- **`initialOrders` prop sync**: added `useEffect` in `OrderBookClient` to sync the `initialOrders` prop to local state when `router.refresh()` triggers a server re-render.
+
+### Added
+
+- **In-app USDC deposit button** (`trade-detail.tsx`): sellers at `created` status now see a `DepositPanel` with a one-click "Send X USDC" button powered by `Hooks.token.useTransferSync` from `wagmi/tempo`. This triggers a Tempo-native TIP-20 transfer directly from the connected wallet to the virtual deposit address. A collapsible "Send manually" section retains the copy-address fallback. `onSuccess` triggers `poll()` so the trade status updates immediately after the on-chain transfer lands.
+- **Own-order expand/cancel in orderbook**: clicking a row labeled "yours" expands it to show the virtual deposit address and a "Cancel order" button. Cancel calls `POST /api/orders/[id]/cancel` with `user_address` in body.
+- **Payment methods in Place Order modal**: for SELL orders, the modal fetches the user's payment methods via `GET /api/users/me` and displays them inline (method type + value). If none are set, a warning banner with a link to `/account` is shown so sellers can add them before placing the order.
+- **No-payment-method warning in orderbook**: a caution banner shown when the connected wallet has an open SELL order but no payment methods registered.
+
 ## [2.1.1] — 2026-05-03
 
 ### Changed — open auth model + balance fix

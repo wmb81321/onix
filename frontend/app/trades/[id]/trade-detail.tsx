@@ -2,9 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useAccount } from 'wagmi'
+import { Hooks } from 'wagmi/tempo'
+import { parseUnits } from 'viem'
 import type { Trade, TradeStatus } from '@/lib/supabase'
 import { PaymentSentForm } from '@/components/payment-sent-form'
 import { ConfirmPaymentPanel } from '@/components/confirm-payment-panel'
+import { PATHUSDC } from '@/components/balance-display'
 
 const STEPS: TradeStatus[] = [
   'created', 'deposited', 'payment_sent', 'payment_confirmed', 'released', 'complete',
@@ -131,30 +134,7 @@ export function TradeDetail({
 
       {/* Seller: deposit instructions */}
       {isSeller && trade.status === 'created' && (
-        <div className="bg-panel rounded-xl border border-accent/20 p-4 space-y-3">
-          <span className="font-mono text-[10px] text-accent uppercase tracking-widest">
-            Action required · Deposit USDC
-          </span>
-          <p className="font-mono text-xs text-dim leading-relaxed">
-            Send exactly{' '}
-            <span className="text-ink">{Number(trade.usdc_amount).toFixed(2)} USDC</span>{' '}
-            to your virtual deposit address. Funds auto-forward to the escrow.
-          </p>
-          <div className="flex items-center gap-2 px-3 py-2.5 bg-canvas rounded-lg border border-white/[0.07]">
-            <span className="font-mono text-xs text-ink/70 flex-1 truncate">
-              {trade.virtual_deposit_address}
-            </span>
-            <button
-              onClick={copyAddress}
-              className="font-mono text-[10px] text-accent/70 hover:text-accent transition-colors shrink-0"
-            >
-              {copied ? 'copied!' : 'copy'}
-            </button>
-          </div>
-          <p className="font-mono text-[10px] text-dim/40">
-            Deadline: {new Date(trade.deposit_deadline).toLocaleString()}
-          </p>
-        </div>
+        <DepositPanel trade={trade} onDeposited={poll} />
       )}
 
       {/* Seller: waiting for buyer payment */}
@@ -235,6 +215,89 @@ export function TradeDetail({
         />
       )}
 
+    </div>
+  )
+}
+
+// ── Deposit panel ─────────────────────────────────────────────────────────────
+
+function DepositPanel({ trade, onDeposited }: { trade: Trade; onDeposited: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const { mutate: transfer, isPending, isSuccess, error } = Hooks.token.useTransferSync()
+
+  function copyAddress() {
+    void navigator.clipboard.writeText(trade.virtual_deposit_address)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function sendDeposit() {
+    transfer(
+      {
+        token:  PATHUSDC,
+        to:     trade.virtual_deposit_address as `0x${string}`,
+        amount: parseUnits(String(trade.usdc_amount), 6),
+      },
+      { onSuccess: onDeposited },
+    )
+  }
+
+  return (
+    <div className="bg-panel rounded-xl border border-accent/20 p-4 space-y-3">
+      <span className="font-mono text-[10px] text-accent uppercase tracking-widest">
+        Action required · Deposit USDC
+      </span>
+      <p className="font-mono text-xs text-dim leading-relaxed">
+        Send exactly{' '}
+        <span className="text-ink">{Number(trade.usdc_amount).toFixed(2)} USDC</span>{' '}
+        to the escrow. Use the button below or send manually to the deposit address.
+      </p>
+
+      {/* One-click deposit */}
+      <button
+        onClick={sendDeposit}
+        disabled={isPending || isSuccess}
+        className="w-full py-2.5 rounded-lg bg-accent text-canvas font-mono text-xs font-semibold hover:bg-accent-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {isPending  ? 'Confirming deposit…'
+         : isSuccess ? `✓ ${Number(trade.usdc_amount).toFixed(2)} USDC sent`
+         : `Send ${Number(trade.usdc_amount).toFixed(2)} USDC`}
+      </button>
+
+      {error && (
+        <p className="font-mono text-[10px] text-danger/70">
+          {error instanceof Error ? error.message : 'Transfer failed — try again'}
+        </p>
+      )}
+
+      {/* Manual fallback */}
+      <details className="group">
+        <summary className="font-mono text-[10px] text-dim/50 cursor-pointer hover:text-dim transition-colors list-none flex items-center gap-1">
+          <span className="group-open:hidden">▶</span>
+          <span className="hidden group-open:inline">▼</span>
+          Send manually instead
+        </summary>
+        <div className="mt-2 space-y-2">
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-canvas rounded-lg border border-white/[0.07]">
+            <span className="font-mono text-[11px] text-ink/70 flex-1 break-all">
+              {trade.virtual_deposit_address}
+            </span>
+            <button
+              onClick={copyAddress}
+              className="font-mono text-[10px] text-accent/70 hover:text-accent transition-colors shrink-0"
+            >
+              {copied ? 'copied!' : 'copy'}
+            </button>
+          </div>
+          <p className="font-mono text-[10px] text-dim/40">
+            Send exactly {Number(trade.usdc_amount).toFixed(2)} USDC (pathUSD on Tempo Moderato).
+          </p>
+        </div>
+      </details>
+
+      <p className="font-mono text-[10px] text-dim/40">
+        Deadline: {new Date(trade.deposit_deadline).toLocaleString()}
+      </p>
     </div>
   )
 }
