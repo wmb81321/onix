@@ -4,7 +4,7 @@
 
 Taker fee live — both maker and taker pay 0.1 USDC via mppx push mode. Mutual cancellation with two-party consent and on-chain USDC refund shipped. Image proof upload added to PaymentSentForm. Full direct counterparty settlement flow live — buyer pays seller off-platform (Zelle/Venmo/bank/wire), seller confirms receipt, agent releases USDC on-chain. MCP server (8 tools), x402 settle path, and full frontend on Vercel + agent on Railway.
 
-Next focus: Plaid bank account integration for balance-based trust signals at trade time.
+Next focus: Agent API spec refresh, then cleanup pass — clearing the path to mainnet before adding Plaid.
 
 ---
 
@@ -30,34 +30,9 @@ Next focus: Plaid bank account integration for balance-based trust signals at tr
 
 ---
 
-## Phase 9 — Plaid bank integration (next to implement)
+## Phase 9 — Agent API spec refresh
 
-**Goal:** Let sellers and buyers optionally connect their bank account. At trade time, read the buyer's bank balance via Plaid to surface a soft trust signal — not a hard block, but a visible green/yellow/red indicator.
-
-**Scope:**
-- Plaid Link flow for sellers and buyers to connect their bank account (optional; trade proceeds without it)
-- When the buyer is about to mark payment sent, read their bank balance via the Plaid Balance API; surface as "Bank balance: $X available" (or "Unverified" if not connected) — a trust signal for the seller before confirming
-- Show connected bank name, account type, and masked account number on the account page and optionally on the trade page
-- Server-side only: Plaid `access_token` stored encrypted in Supabase; never sent to the browser
-- NOT implementing ACH or any bank-initiated transfer — read-only account connection and balance reads only
-
-**References:** [plaid/quickstart](https://github.com/plaid/quickstart), [plaid/sandbox-custom-users](https://github.com/plaid/sandbox-custom-users), [plaid/plaid-openapi](https://github.com/plaid/plaid-openapi)
-
-**Deliverables:**
-- `agent/src/routes/plaid.ts` — `POST /plaid/link-token`, `POST /plaid/exchange-token`, `GET /plaid/balance`
-- Migration 011: `users.plaid_access_token` (text, encrypted at rest), `users.plaid_institution` (text), `users.plaid_accounts` (jsonb — snapshot of connected accounts)
-- `frontend/app/api/plaid/` — proxy routes for link-token, exchange-token, balance
-- `PlaidLinkButton` component — loads Plaid Link SDK, exchanges public token, stores access token server-side
-- Balance signal on `PaymentSentForm` and `ConfirmPaymentPanel`: shows buyer's current available balance (or "Unverified" badge)
-- Account page "Connect bank" section: institution name + account type shown after successful connection
-
-**Done when:** A buyer can connect their bank; `PaymentSentForm` shows their current available balance; the seller sees the balance signal in `ConfirmPaymentPanel` before releasing USDC.
-
----
-
-## Phase 10 — Agent API spec refresh
-
-**Goal:** Single authoritative reference for v2.2 endpoints so any agent can integrate without reading source code.
+**Goal:** Single authoritative reference for v2.2 endpoints so any agent can integrate without reading source code. Fast win — no external dependencies.
 
 **Deliverables:**
 - `docs/agent-api.md` — endpoint reference: method, path, auth, request schema, response schema, state transitions triggered
@@ -68,46 +43,11 @@ Next focus: Plaid bank account integration for balance-based trust signals at tr
 
 ---
 
-## Phase 11 — Seller agent script
+## Phase 10 — Cleanup pass
 
-**Goal:** `scripts/seller-agent.ts` — symmetric to `buyer-agent.ts`. Runs unattended and deposits USDC for newly matched trades.
+Remove accumulated technical debt before mainnet. Do this before agent scripts so the codebase is clean going into testing.
 
-```bash
-SELLER_ADDRESS=0x... FRONTEND_URL=https://... tsx scripts/seller-agent.ts
-```
-
-Steps:
-1. Poll Supabase for trades where `seller_address = SELLER_ADDRESS` and `status = created`
-2. Check USDC balance (via `Hooks.token.useGetBalance` or `cast balance`)
-3. Transfer exact USDC to `virtual_deposit_address` via `tempo wallet transfer` or viem
-4. Poll until `status = deposited` → log
-
-**Done when:** Seller agent deposits USDC for a matched trade with zero manual steps.
-
----
-
-## Phase 12 — End-to-end agentic test
-
-**Goal:** Full headless trade — both seller and buyer agents run unattended, trade completes.
-
-`scripts/e2e-agentic.ts`:
-1. Post SELL order via API (pays maker fee)
-2. Match it from buyer address via API (pays taker fee)
-3. Seller agent deposits USDC automatically
-4. Buyer agent marks payment sent with reference
-5. Seller agent (or human) confirms receipt → USDC released
-6. Assert `status = complete` in Supabase
-7. Assert buyer USDC balance increased on-chain
-
-**Done when:** `tsx scripts/e2e-agentic.ts` passes with both agents running headlessly on testnet.
-
----
-
-## Phase 13 — Cleanup pass
-
-Remove accumulated technical debt before mainnet:
-
-- [ ] Drop legacy Stripe DB columns (migration `011_drop_stripe_columns.sql` or renumber after Plaid): `stripe_account`, `stripe_customer_id`, `stripe_buyer_pm_id`, `stripe_buyer_card_brand`, `stripe_buyer_card_last4`, `stripe_payment_intent_id`, `link_spend_request_id`, `link_payment_method_id`, `stripe_payout_id`, `stripe_account_id`
+- [ ] Drop legacy Stripe DB columns (migration `011_drop_stripe_columns.sql`): `stripe_account`, `stripe_customer_id`, `stripe_buyer_pm_id`, `stripe_buyer_card_brand`, `stripe_buyer_card_last4`, `stripe_payment_intent_id`, `link_spend_request_id`, `link_payment_method_id`, `stripe_payout_id`, `stripe_account_id`
 - [ ] Regenerate `frontend/lib/database.types.ts` after migration
 - [ ] `rm -rf agent/dist/` and rebuild: `pnpm --filter agent build`
 - [ ] Remove orphaned pages `frontend/app/stripe/return/` and `frontend/app/stripe/payment-return/[id]/`
@@ -118,9 +58,44 @@ Remove accumulated technical debt before mainnet:
 
 ---
 
-## Phase 14 — Mainnet deploy
+## Phase 11 — Seller agent script
 
-**Prerequisites:** Phase 12 green (e2e test passes), Phase 13 clean (no stale Stripe references).
+**Goal:** `scripts/seller-agent.ts` — runs unattended and deposits USDC for newly matched trades.
+
+```bash
+SELLER_ADDRESS=0x... FRONTEND_URL=https://... tsx scripts/seller-agent.ts
+```
+
+Steps:
+1. Poll Supabase for trades where `seller_address = SELLER_ADDRESS` and `status = created`
+2. Check USDC balance (`cast balance` or Tempo RPC)
+3. Transfer exact USDC to `virtual_deposit_address` via `tempo wallet transfer` or viem
+4. Poll until `status = deposited` → log
+
+**Done when:** Seller agent deposits USDC for a matched trade with zero manual steps.
+
+---
+
+## Phase 12 — End-to-end agentic test
+
+**Goal:** Full headless trade — both seller and buyer agents run unattended, trade completes on testnet.
+
+`scripts/e2e-agentic.ts`:
+1. Post SELL order via API (pays maker fee)
+2. Match it from buyer address via API (pays taker fee)
+3. Seller agent deposits USDC automatically
+4. Buyer agent marks payment sent with reference
+5. Seller agent confirms receipt → USDC released
+6. Assert `status = complete` in Supabase
+7. Assert buyer USDC balance increased on-chain
+
+**Done when:** `tsx scripts/e2e-agentic.ts` passes with both agents running headlessly on testnet.
+
+---
+
+## Phase 13 — Mainnet deploy
+
+**Prerequisites:** Phase 12 green (e2e test passes on testnet), Phase 10 clean (no stale Stripe references).
 
 Checklist:
 - [ ] Mine new `AGENT_MASTER_ID` on Tempo mainnet (`/setup-virtual-master`)
@@ -131,6 +106,33 @@ Checklist:
 - [ ] Update `NEXT_PUBLIC_TEMPO_RPC_URL` in Vercel env
 - [ ] Smoke test: complete one real trade before announcing
 - [ ] Register agent as a discoverable paid service via Tempo developer portal
+
+---
+
+## Phase 14 — Plaid bank integration
+
+**Goal:** Let sellers and buyers optionally connect their bank account. At trade time, read the buyer's bank balance via Plaid to surface a soft trust signal — not a hard block, but a visible indicator that builds counterparty confidence.
+
+> Apply for Plaid production API access before starting implementation — approval can take days to weeks.
+
+**Scope:**
+- Plaid Link flow for sellers and buyers to connect their bank account (optional; trade proceeds without it)
+- When the buyer marks payment sent, read their bank balance via the Plaid Balance API and surface it as "Bank balance: $X available" (or "Unverified" if not connected) — visible to the seller before they confirm receipt
+- Show connected bank name, account type, and masked account number on the account page
+- Server-side only: Plaid `access_token` stored encrypted in Supabase; never sent to the browser
+- NOT implementing ACH or any bank-initiated transfer in this phase — read-only account connection and balance reads only
+
+**References:** [plaid/quickstart](https://github.com/plaid/quickstart) · [plaid/sandbox-custom-users](https://github.com/plaid/sandbox-custom-users) · [plaid/plaid-openapi](https://github.com/plaid/plaid-openapi)
+
+**Deliverables:**
+- `agent/src/routes/plaid.ts` — `POST /plaid/link-token`, `POST /plaid/exchange-token`, `GET /plaid/balance`
+- Migration 012: `users.plaid_access_token` (text, encrypted at rest), `users.plaid_institution` (text), `users.plaid_accounts` (jsonb)
+- `frontend/app/api/plaid/` — proxy routes for link-token, exchange-token, balance
+- `PlaidLinkButton` component — loads Plaid Link SDK, exchanges public token, persists access token server-side
+- Balance signal on `PaymentSentForm` and `ConfirmPaymentPanel`
+- Account page "Connect bank" section
+
+**Done when:** A buyer can connect their bank; `PaymentSentForm` shows their available balance; the seller sees it in `ConfirmPaymentPanel` before releasing USDC.
 
 ---
 
@@ -146,7 +148,9 @@ Checklist:
 - Show counterparty `rating_avg` on order book (pre-match, not just post-trade)
 - Dispute resolution UI — open/close disputes, capture evidence
 - Time-locked refund path — if seller doesn't confirm within N hours, buyer can open dispute
-- Plaid ACH transfer — actually move fiat on-platform once bank accounts are connected (extends Phase 9)
+
+**Extend Plaid (Phase 14 follow-on):**
+- Plaid ACH transfer — actually move fiat on-platform once accounts are connected
 - Balance oracle for dynamic FX validation instead of user-set rate
 
 **Scale:**
