@@ -10,12 +10,12 @@ export async function GET(req: NextRequest) {
   const db = createServerClient()
   const { data, error } = await db
     .from('users')
-    .select('stripe_buyer_card_brand, stripe_buyer_card_last4, stripe_customer_id, stripe_buyer_pm_id, link_payment_method_id')
+    .select('payment_methods, rating_avg, trade_count')
     .eq('address', address)
     .single()
 
   if (error || !data) {
-    return NextResponse.json({})
+    return NextResponse.json({ payment_methods: [], rating_avg: 0, trade_count: 0 })
   }
 
   return NextResponse.json(data)

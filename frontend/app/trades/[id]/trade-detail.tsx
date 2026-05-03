@@ -3,28 +3,40 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useAccount } from 'wagmi'
 import type { Trade, TradeStatus } from '@/lib/supabase'
-import { BuyerPaymentForm } from '@/components/buyer-payment-form'
-import { LinkPayButton } from '@/components/link-pay-button'
+import { PaymentSentForm } from '@/components/payment-sent-form'
+import { ConfirmPaymentPanel } from '@/components/confirm-payment-panel'
 
 const STEPS: TradeStatus[] = [
-  'created', 'deposited', 'fee_paid', 'fiat_sent', 'released', 'complete',
+  'created', 'deposited', 'payment_sent', 'payment_confirmed', 'released', 'complete',
 ]
 
-const STEP_LABELS: Record<TradeStatus, string> = {
-  created:         'Trade created',
-  deposited:       'USDC deposited',
-  fee_paid:        'Service fee paid',
-  fiat_sent:       'Fiat sent to seller',
-  released:        'USDC released to buyer',
-  complete:        'Trade complete',
-  deposit_timeout: 'Deposit timed out',
-  stripe_failed:   'Stripe payment failed',
-  refunded:        'Refunded',
+const STEP_LABELS: Record<string, string> = {
+  created:           'Trade created',
+  deposited:         'USDC deposited',
+  payment_sent:      'Payment sent by buyer',
+  payment_confirmed: 'Payment confirmed by seller',
+  released:          'USDC released to buyer',
+  complete:          'Trade complete',
+  deposit_timeout:   'Deposit timed out',
+  disputed:          'Under dispute',
+  refunded:          'Refunded',
+  // Legacy
+  fee_paid:          'Service fee paid',
+  fiat_sent:         'Fiat sent',
+  stripe_failed:     'Payment failed',
 }
 
-const FAILED: TradeStatus[] = ['deposit_timeout', 'stripe_failed', 'refunded']
+const FAILED: TradeStatus[] = ['deposit_timeout', 'disputed', 'refunded', 'stripe_failed']
 
-export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
+type PaymentMethod = { type: string; label: string; value: string }
+
+export function TradeDetail({
+  initialTrade,
+  sellerPaymentMethods = [],
+}: {
+  initialTrade: Trade
+  sellerPaymentMethods?: PaymentMethod[]
+}) {
   const [trade,  setTrade]  = useState<Trade>(initialTrade)
   const [copied, setCopied] = useState(false)
   const { address } = useAccount()
@@ -43,10 +55,10 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
   }, [trade.id])
 
   useEffect(() => {
-    if (trade.status === 'complete' || isFailed) return
+    if (isDone || isFailed) return
     const id = setInterval(poll, 5000)
     return () => clearInterval(id)
-  }, [trade.status, isFailed, poll])
+  }, [isDone, isFailed, poll])
 
   function copyAddress() {
     void navigator.clipboard.writeText(trade.virtual_deposit_address)
@@ -54,7 +66,7 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const activeStep = STEPS.indexOf(trade.status)
+  const activeStep = STEPS.indexOf(trade.status as TradeStatus)
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
@@ -113,11 +125,11 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
 
       {isFailed && (
         <div className="bg-danger/5 border border-danger/20 rounded-xl p-4 font-mono text-xs text-danger/80">
-          {STEP_LABELS[trade.status]}
+          {STEP_LABELS[trade.status] ?? trade.status}
         </div>
       )}
 
-      {/* Seller: deposit instructions (created state) */}
+      {/* Seller: deposit instructions */}
       {isSeller && trade.status === 'created' && (
         <div className="bg-panel rounded-xl border border-accent/20 p-4 space-y-3">
           <span className="font-mono text-[10px] text-accent uppercase tracking-widest">
@@ -126,7 +138,7 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
           <p className="font-mono text-xs text-dim leading-relaxed">
             Send exactly{' '}
             <span className="text-ink">{Number(trade.usdc_amount).toFixed(2)} USDC</span>{' '}
-            to your virtual deposit address. Funds auto-forward to the agent escrow.
+            to your virtual deposit address. Funds auto-forward to the escrow.
           </p>
           <div className="flex items-center gap-2 px-3 py-2.5 bg-canvas rounded-lg border border-white/[0.07]">
             <span className="font-mono text-xs text-ink/70 flex-1 truncate">
@@ -150,8 +162,23 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
         <div className="flex items-center gap-3 px-4 py-3 bg-panel rounded-xl border border-white/[0.07]">
           <span className="w-1.5 h-1.5 rounded-full bg-caution animate-pulse shrink-0" />
           <span className="font-mono text-xs text-dim">
-            Waiting for buyer to pay ${Number(trade.usd_amount).toFixed(2)} USD…
+            Waiting for buyer to send ${Number(trade.usd_amount).toFixed(2)} USD…
           </span>
+        </div>
+      )}
+
+      {/* Seller: confirm receipt */}
+      {isSeller && trade.status === 'payment_sent' && address && (
+        <div className="bg-panel rounded-xl border border-accent/20 p-4 space-y-4">
+          <ConfirmPaymentPanel
+            tradeId={trade.id}
+            sellerAddress={address}
+            usdAmount={Number(trade.usd_amount)}
+            paymentMethod={trade.payment_method}
+            paymentReference={trade.payment_reference}
+            paymentProofUrl={trade.payment_proof_url}
+            onConfirmed={poll}
+          />
         </div>
       )}
 
@@ -165,30 +192,37 @@ export function TradeDetail({ initialTrade }: { initialTrade: Trade }) {
         </div>
       )}
 
-      {/* Buyer: pay USD */}
-      {isBuyer && trade.status === 'deposited' && (
+      {/* Buyer: mark payment as sent */}
+      {isBuyer && trade.status === 'deposited' && address && (
         <div className="bg-panel rounded-xl border border-accent/20 p-4 space-y-4">
           <div>
             <span className="font-mono text-[10px] text-accent uppercase tracking-widest">
-              Action required · Pay USD
+              Action required · Send payment
             </span>
             <p className="font-mono text-xs text-dim leading-relaxed mt-1.5">
               Seller has deposited{' '}
               <span className="text-ink">{Number(trade.usdc_amount).toFixed(2)} USDC</span>.
-              Pay to complete and receive your USDC.
+              Send ${Number(trade.usd_amount).toFixed(2)} USD to the seller using their preferred method,
+              then confirm below.
             </p>
           </div>
-          <LinkPayButton
+          <PaymentSentForm
             tradeId={trade.id}
+            buyerAddress={address}
             usdAmount={Number(trade.usd_amount)}
-            onPaid={poll}
+            sellerPaymentMethods={sellerPaymentMethods}
+            onSent={poll}
           />
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-px bg-white/[0.05]" />
-            <span className="font-mono text-[10px] text-dim/30 uppercase tracking-widest">or pay with card</span>
-            <div className="flex-1 h-px bg-white/[0.05]" />
-          </div>
-          <BuyerPaymentForm tradeId={trade.id} usdAmount={Number(trade.usd_amount)} />
+        </div>
+      )}
+
+      {/* Buyer: waiting for seller confirmation */}
+      {isBuyer && trade.status === 'payment_sent' && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-panel rounded-xl border border-white/[0.07]">
+          <span className="w-1.5 h-1.5 rounded-full bg-caution animate-pulse shrink-0" />
+          <span className="font-mono text-xs text-dim">
+            Waiting for seller to confirm receipt and release USDC…
+          </span>
         </div>
       )}
 
@@ -214,12 +248,12 @@ function RatingWidget({
   raterAddress: string
   rateeRole: 'buyer' | 'seller'
 }) {
-  const [score,     setScore]     = useState(0)
-  const [hovered,   setHovered]   = useState(0)
-  const [comment,   setComment]   = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  const [score,      setScore]      = useState(0)
+  const [hovered,    setHovered]    = useState(0)
+  const [comment,    setComment]    = useState('')
+  const [submitted,  setSubmitted]  = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [error,     setError]     = useState<string | null>(null)
+  const [error,      setError]      = useState<string | null>(null)
 
   async function submit() {
     if (score === 0) return
@@ -256,7 +290,6 @@ function RatingWidget({
         Rate this {rateeRole}
       </span>
 
-      {/* Stars */}
       <div className="flex items-center gap-2">
         {[1, 2, 3, 4, 5].map((n) => (
           <button
@@ -278,7 +311,6 @@ function RatingWidget({
         )}
       </div>
 
-      {/* Optional comment */}
       <textarea
         value={comment}
         onChange={(e) => setComment(e.target.value)}

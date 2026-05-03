@@ -5,13 +5,17 @@ import { z } from 'zod'
 export const TradeStatusSchema = z.enum([
   'created',
   'deposited',
-  'fee_paid',
-  'fiat_sent',
+  'payment_sent',
+  'payment_confirmed',
   'released',
   'complete',
   'deposit_timeout',
-  'stripe_failed',
+  'disputed',
   'refunded',
+  // Legacy statuses (old Stripe flow — kept for backward compat with existing rows)
+  'fee_paid',
+  'fiat_sent',
+  'stripe_failed',
 ])
 export type TradeStatus = z.infer<typeof TradeStatusSchema>
 
@@ -26,15 +30,17 @@ export const TradeRowSchema = z.object({
   usdc_amount:             numericField,
   usd_amount:              numericField,
   virtual_deposit_address: z.string(),
-  stripe_payout_id:          z.string().nullable(),
-  stripe_account_id:         z.string().nullable(),
-  stripe_payment_intent_id:  z.string().nullable(),
-  link_spend_request_id:     z.string().nullable(),
-  status:                    TradeStatusSchema,
-  deposit_deadline:        z.string(),  // ISO 8601
-  created_at:              z.string(),
-  updated_at:              z.string(),
-})
+  status:                  TradeStatusSchema,
+  deposit_deadline:        z.string(),
+  // Payment fields (migration 006)
+  payment_method:       z.string().nullable(),
+  payment_reference:    z.string().nullable(),
+  payment_proof_url:    z.string().nullable(),
+  payment_sent_at:      z.string().nullable(),
+  payment_confirmed_at: z.string().nullable(),
+  created_at:           z.string(),
+  updated_at:           z.string(),
+}).passthrough()
 export type TradeRow = z.infer<typeof TradeRowSchema>
 
 // ── Order ────────────────────────────────────────────────────────────────────
@@ -60,18 +66,18 @@ export type OrderRow = z.infer<typeof OrderRowSchema>
 
 // ── User ─────────────────────────────────────────────────────────────────────
 
-export const UserRowSchema = z.object({
-  address:        z.string(),
-  stripe_account: z.string().nullable(),
-  rating_avg:     numericField,
-  trade_count:    z.number().int(),
-  created_at:     z.string(),
-  // Migration 004
-  link_payment_method_id: z.string().nullable(),
-  // Migration 005
-  stripe_customer_id:       z.string().nullable(),
-  stripe_buyer_pm_id:       z.string().nullable(),
-  stripe_buyer_card_brand:  z.string().nullable(),
-  stripe_buyer_card_last4:  z.string().nullable(),
+const PaymentMethodSchema = z.object({
+  type:  z.string(),
+  label: z.string(),
+  value: z.string(),
 })
+export type PaymentMethod = z.infer<typeof PaymentMethodSchema>
+
+export const UserRowSchema = z.object({
+  address:         z.string(),
+  rating_avg:      numericField,
+  trade_count:     z.number().int(),
+  payment_methods: z.array(PaymentMethodSchema).default([]),
+  created_at:      z.string(),
+}).passthrough()
 export type UserRow = z.infer<typeof UserRowSchema>

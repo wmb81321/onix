@@ -6,7 +6,6 @@ import { Hooks } from 'wagmi/tempo'
 import { formatUnits } from 'viem'
 import Link from 'next/link'
 import { BalanceDisplay, PATHUSDC } from './balance-display'
-import { StripeConnectButton } from './stripe-connect-button'
 
 type OrderType = 'buy' | 'sell'
 
@@ -18,15 +17,13 @@ interface Props {
 
 export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
   const { address } = useAccount()
-  const [type,           setType]           = useState<OrderType>('sell')
-  const [usdcAmount,     setUsdcAmount]     = useState('')
-  const [rate,           setRate]           = useState('1.00')
-  const [error,          setError]          = useState<string | null>(null)
-  const [submitting,     setSubmitting]     = useState(false)
-  const [stripeReady,    setStripeReady]    = useState(false)
-  const [placed,         setPlaced]         = useState(false)
+  const [type,       setType]       = useState<OrderType>('sell')
+  const [usdcAmount, setUsdcAmount] = useState('')
+  const [rate,       setRate]       = useState('1.00')
+  const [error,      setError]      = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [placed,     setPlaced]     = useState(false)
 
-  // Read balance for sell-order validation — React Query deduplicates with BalanceDisplay
   const { data: balanceRaw } = Hooks.token.useGetBalance({
     account: address,
     token:   PATHUSDC,
@@ -36,7 +33,6 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
     ? Number(formatUnits(balanceRaw as bigint, 6))
     : null
 
-  // Reset on open
   useEffect(() => {
     if (open) {
       setUsdcAmount('')
@@ -58,11 +54,6 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
 
     if (type === 'sell' && balanceUsdc !== null && usdc > balanceUsdc) {
       setError(`Insufficient balance — you have ${balanceUsdc.toFixed(2)} USDC. Fund your wallet from the Account page.`)
-      return
-    }
-
-    if (type === 'sell' && !stripeReady) {
-      setError('Connect your Stripe account to receive USD payouts before placing a sell order')
       return
     }
 
@@ -101,7 +92,6 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
     >
       <div className="w-full max-w-sm bg-panel border border-white/[0.09] rounded-2xl shadow-2xl">
 
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07]">
           <span className="font-mono text-xs text-dim uppercase tracking-widest">New Order</span>
           <button
@@ -136,9 +126,7 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
 
           {/* USDC Amount */}
           <label className="block space-y-1.5">
-            <span className="font-mono text-[10px] text-dim uppercase tracking-widest">
-              USDC Amount
-            </span>
+            <span className="font-mono text-[10px] text-dim uppercase tracking-widest">USDC Amount</span>
             <div className="flex items-center gap-2 px-3 py-2.5 bg-canvas rounded-lg border border-white/[0.07] focus-within:border-accent/40 transition-colors">
               <input
                 type="number"
@@ -202,27 +190,16 @@ export function PlaceOrderModal({ open, onClose, onCreated }: Props) {
             </div>
           </div>
 
-          {/* Stripe connect — required for sell orders */}
-          {type === 'sell' && (
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] text-dim/50">Stripe payout</span>
-              <StripeConnectButton onStatusChange={setStripeReady} />
-            </div>
-          )}
-
-          {/* Error */}
           {error && (
             <p className="font-mono text-xs text-danger/80 bg-danger/5 border border-danger/20 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
 
-          {/* Hint */}
           <p className="font-mono text-[10px] text-dim/40 text-center">
-            Min. 5 USDC · 24h expiry · non-refundable listing fee
+            Min. 5 USDC · 24h expiry · counterparties pay each other directly
           </p>
 
-          {/* Submit / success */}
           {placed ? (
             <div className="flex items-center justify-center gap-2 py-2.5 rounded-lg bg-accent/10 border border-accent/30">
               <span className="text-accent text-sm">✓</span>

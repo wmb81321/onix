@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-05-02
+
+### Changed — Stripe removed, direct counterparty payments
+
+- **Removed Stripe entirely** as the fiat payment rail (Connect, PaymentElement, Stripe Link, Global Payouts, webhooks)
+- **New trade flow**: `created → deposited → payment_sent → payment_confirmed → released → complete`
+- Counterparties now pay each other directly (Zelle, Venmo, bank transfer, wire, etc.)
+- Seller adds payment methods on `/account`; buyer sees them on the trade page
+- Buyer marks payment sent with method + reference number + optional proof URL
+- Seller confirms receipt → agent releases USDC on-chain (unchanged Tempo path)
+
+### Added
+
+- `supabase/migrations/006_manual_payment.sql` — new trade statuses, payment tracking columns, `users.payment_methods`
+- `agent/src/flows/flowManual.ts` — `markPaymentSent`, `confirmPayment` replacing Stripe flow
+- `POST /trades/:id/payment-sent` — buyer marks fiat sent (Bearer auth)
+- `POST /trades/:id/confirm-payment` — seller confirms receipt, triggers USDC release (Bearer auth)
+- `POST /api/users/payment-methods` — save/update per-user payment methods
+- `PaymentSentForm` component — method selector + reference + optional proof URL
+- `ConfirmPaymentPanel` component — seller view with buyer's payment details + confirm button
+- `PaymentMethodsEditor` component — account page: list/add/remove payment methods
+
+### Kept
+
+- `POST /trades/:id/settle` (public, mppx x402) — agent-native path: pay 0.1 USDC fee → mark payment_sent
+- mppx service fee infrastructure (MPP_SECRET_KEY, CHARGE_AMOUNT_USDC, mppx.ts)
+- Tempo Virtual Addresses, deposit monitor, on-chain USDC release (unchanged)
+- FACILITATOR_URL proxy, AGENT_API_KEY Bearer auth (unchanged)
+
+### Removed
+
+- `agent/src/stripe/` — Stripe client, payouts, webhook handler
+- `agent/src/lib/link.ts` — Stripe Link CLI wrapper
+- `agent/src/routes/webhooks.ts` — Stripe webhook route
+- `agent/src/flows/flowA.ts` — Stripe-based settlement flow
+- Stripe Connect onboarding, SetupIntent card save, off-session charges
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `LINK_CLI_AUTH` env vars
+- MCP tool `initiate_payment` → replaced by `mark_payment_sent` + `confirm_payment`
+
 ## [1.4.0] — 2026-05-01
 ### Phase 8 — MCP server, /agents page, public orders GET, settle_trade tool
 

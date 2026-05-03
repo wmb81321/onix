@@ -6,29 +6,26 @@ export type Database = {
       users: {
         Row: {
           address: string
+          payment_methods: Array<{ type: string; label: string; value: string }>
+          rating_avg: number
+          trade_count: number
+          created_at: string
+          // Legacy Stripe columns — kept for existing rows, not used in new flow
           stripe_account: string | null
           link_payment_method_id: string | null
           stripe_customer_id: string | null
           stripe_buyer_pm_id: string | null
           stripe_buyer_card_brand: string | null
           stripe_buyer_card_last4: string | null
-          rating_avg: number
-          trade_count: number
-          created_at: string
         }
         Insert: {
           address: string
-          stripe_account?: string | null
+          payment_methods?: Array<{ type: string; label: string; value: string }>
         }
         Update: {
-          stripe_account?:           string | null
-          link_payment_method_id?:   string | null
-          stripe_customer_id?:       string | null
-          stripe_buyer_pm_id?:       string | null
-          stripe_buyer_card_brand?:  string | null
-          stripe_buyer_card_last4?:  string | null
-          rating_avg?:               number
-          trade_count?:              number
+          payment_methods?: Array<{ type: string; label: string; value: string }>
+          rating_avg?: number
+          trade_count?: number
         }
         Relationships: []
       }
@@ -73,12 +70,19 @@ export type Database = {
           usdc_amount: number
           usd_amount: number
           virtual_deposit_address: string
+          status: Database['public']['Enums']['trade_status']
+          deposit_deadline: string
+          // Payment fields (migration 006)
+          payment_method: string | null
+          payment_reference: string | null
+          payment_proof_url: string | null
+          payment_sent_at: string | null
+          payment_confirmed_at: string | null
+          // Legacy Stripe columns
           stripe_payout_id: string | null
           stripe_account_id: string | null
           stripe_payment_intent_id: string | null
           link_spend_request_id: string | null
-          status: Database['public']['Enums']['trade_status']
-          deposit_deadline: string
           created_at: string
           updated_at: string
         }
@@ -92,10 +96,11 @@ export type Database = {
         }
         Update: {
           status?: Database['public']['Enums']['trade_status']
-          stripe_payout_id?: string | null
-          stripe_account_id?: string | null
-          stripe_payment_intent_id?: string | null
-          link_spend_request_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_proof_url?: string | null
+          payment_sent_at?: string | null
+          payment_confirmed_at?: string | null
         }
         Relationships: [
           {
@@ -144,13 +149,16 @@ export type Database = {
       trade_status:
         | 'created'
         | 'deposited'
-        | 'fee_paid'
-        | 'fiat_sent'
+        | 'payment_sent'
+        | 'payment_confirmed'
         | 'released'
         | 'complete'
         | 'deposit_timeout'
-        | 'stripe_failed'
+        | 'disputed'
         | 'refunded'
+        | 'fee_paid'
+        | 'fiat_sent'
+        | 'stripe_failed'
     }
   }
 }

@@ -9,48 +9,38 @@ import { ENV } from './lib/env.js'
 import { db } from './lib/supabase.js'
 import { createRouter } from './lib/router.js'
 import { registerTradeRoutes } from './routes/trades.js'
-import { registerWebhookRoutes } from './routes/webhooks.js'
-import { registerFlowAHandlers } from './flows/flowA.js'
 import { startDepositMonitor } from './tempo/monitor.js'
-import { initLinkCli } from './lib/link.js'
 
 async function main() {
-  initLinkCli()
-
-  // Verify Supabase connection
   const { error } = await db.from('trades').select('id').limit(1)
   if (error) throw new Error(`Supabase connection failed: ${error.message}`)
   console.log('[agent] Supabase connected ✓')
   console.log('[agent] Environment validated ✓')
 
-  // Register Stripe webhook handlers (must happen before any webhook arrives)
-  registerFlowAHandlers()
-  console.log('[agent] Flow A handlers registered ✓')
-
-  // Build router — API key gates all routes except /health and /webhooks/stripe
   const router = createRouter(ENV.AGENT_API_KEY)
 
   router.get('/health', async (_req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({ status: 'ok', version: '1.4.0' }))
+    res.end(JSON.stringify({ status: 'ok', version: '2.0.0' }))
   })
 
   registerTradeRoutes(router)
-  registerWebhookRoutes(router)
 
-  // Start HTTP server
   const server = createServer((req, res) => router.handle(req, res))
 
   server.listen(ENV.PORT, () => {
     console.log(`[agent] Listening on port ${ENV.PORT} ✓`)
-    console.log('[agent] Routes: POST /trades, POST /trades/:id/link-pay, POST /trades/:id/settle, POST /webhooks/stripe')
+    console.log('[agent] Routes:')
+    console.log('  POST /trades              (Bearer)')
+    console.log('  POST /trades/:id/payment-sent     (Bearer)')
+    console.log('  POST /trades/:id/confirm-payment  (Bearer)')
+    console.log('  POST /trades/:id/settle           (public — mppx x402)')
   })
 
-  // Resume monitoring any trades that were pending before this boot
   const tokenAddress = ENV.TEMPO_PATHUSDC_ADDRESS as `0x${string}`
   await startDepositMonitor(tokenAddress)
   console.log('[agent] Deposit monitor started ✓')
-  console.log('[agent] Ready — waiting for trades')
+  console.log('[agent] Ready')
 }
 
 main().catch((err) => {

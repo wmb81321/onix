@@ -5,22 +5,20 @@ import { useAccount } from 'wagmi'
 import { Hooks } from 'wagmi/tempo'
 import { formatUnits } from 'viem'
 import Link from 'next/link'
-import { StripeConnectButton } from '@/components/stripe-connect-button'
-import { SaveCardForm } from '@/components/save-card-form'
-import { LinkPmSetup } from '@/components/link-pm-setup'
+import { PaymentMethodsEditor } from '@/components/payment-methods-editor'
 import type { Order, Trade } from '@/lib/supabase'
 
 import { PATHUSDC, useTokenSymbol } from '@/components/balance-display'
 
+type PaymentMethod = { type: string; label: string; value: string }
+
 export function AccountClient() {
   const { address, isConnected } = useAccount()
-  const [orders,       setOrders]       = useState<Order[]>([])
-  const [trades,       setTrades]       = useState<Trade[]>([])
-  const [loading,      setLoading]      = useState(false)
-  const [copied,       setCopied]       = useState(false)
-  const [savedCard,    setSavedCard]    = useState<{ brand: string; last4: string } | null>(null)
-  const [showCardForm, setShowCardForm] = useState(false)
-  const [linkPmId,     setLinkPmId]     = useState<string | null>(null)
+  const [orders,         setOrders]         = useState<Order[]>([])
+  const [trades,         setTrades]         = useState<Trade[]>([])
+  const [loading,        setLoading]        = useState(false)
+  const [copied,         setCopied]         = useState(false)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
 
   const symbol = useTokenSymbol()
 
@@ -47,17 +45,12 @@ export function AccountClient() {
       fetch(`/api/orders/by-user?address=${address}`).then((r) => r.json() as Promise<Order[]>),
       fetch(`/api/trades/by-user?address=${address}`).then((r) => r.json() as Promise<Trade[]>),
       fetch(`/api/users/me?address=${address}`).then((r) => r.json() as Promise<{
-        stripe_buyer_card_brand?: string | null
-        stripe_buyer_card_last4?: string | null
-        link_payment_method_id?:  string | null
+        payment_methods?: PaymentMethod[]
       }>),
     ]).then(([ordersData, tradesData, userData]) => {
       setOrders(Array.isArray(ordersData) ? ordersData : [])
       setTrades(Array.isArray(tradesData) ? tradesData : [])
-      if (userData.stripe_buyer_card_brand && userData.stripe_buyer_card_last4) {
-        setSavedCard({ brand: userData.stripe_buyer_card_brand, last4: userData.stripe_buyer_card_last4 })
-      }
-      setLinkPmId(userData.link_payment_method_id ?? null)
+      setPaymentMethods(userData.payment_methods ?? [])
     }).catch(() => {
       setOrders([])
       setTrades([])
@@ -85,7 +78,7 @@ export function AccountClient() {
       {/* Header */}
       <div>
         <h2 className="text-lg font-semibold text-ink tracking-tight">Account</h2>
-        <p className="text-[12px] font-mono text-dim mt-0.5">wallet · balance · payments</p>
+        <p className="text-[12px] font-mono text-dim mt-0.5">wallet · balance · payment methods</p>
       </div>
 
       {/* Wallet + Balance */}
@@ -124,65 +117,28 @@ export function AccountClient() {
             </button>
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center justify-between px-4 py-3.5">
-          <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Stripe payout</span>
-          <StripeConnectButton />
+      {/* Payment methods (for receiving USD from buyers) */}
+      <div className="bg-panel rounded-xl border border-white/[0.07] p-4 space-y-3">
+        <div>
+          <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Payment Methods</span>
+          <p className="font-mono text-[10px] text-dim/40 mt-0.5">
+            Where buyers send USD to you — Zelle, Venmo, bank account, etc.
+          </p>
         </div>
-
-        <div className="flex items-center justify-between px-4 py-3.5">
-          <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Auto-pay card</span>
-          {savedCard ? (
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-ink/70">
-                {savedCard.brand} ···· {savedCard.last4}
-              </span>
-              <button
-                onClick={() => setShowCardForm((v) => !v)}
-                className="font-mono text-[10px] text-accent/60 hover:text-accent transition-colors"
-              >
-                change
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowCardForm((v) => !v)}
-              className="font-mono text-[10px] text-accent/60 hover:text-accent transition-colors"
-            >
-              + add card
-            </button>
-          )}
-        </div>
-        {showCardForm && address && (
-          <div className="px-4 py-4 border-t border-white/[0.05]">
-            <SaveCardForm
-              userAddress={address}
-              onSaved={(brand, last4) => {
-                setSavedCard({ brand, last4 })
-                setShowCardForm(false)
-              }}
-            />
-          </div>
+        {address && (
+          <PaymentMethodsEditor
+            userAddress={address}
+            initialMethods={paymentMethods}
+            onSaved={setPaymentMethods}
+          />
         )}
-
-        <div className="flex items-start justify-between px-4 py-3.5 gap-4 border-t border-white/[0.05]">
-          <div className="shrink-0">
-            <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Stripe Link</span>
-            <p className="font-mono text-[9px] text-dim/40 mt-0.5">agent payments · P2P</p>
-          </div>
-          {address && (
-            <LinkPmSetup
-              userAddress={address}
-              currentPmId={linkPmId}
-              onSaved={(pmId) => setLinkPmId(pmId || null)}
-            />
-          )}
-        </div>
       </div>
 
       {/* Deposit / Withdraw */}
       <div className="bg-panel rounded-xl border border-white/[0.07] p-4 space-y-3">
-        <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Deposit · Withdraw</span>
+        <span className="font-mono text-[10px] text-dim uppercase tracking-widest">Deposit · Withdraw USDC</span>
         <p className="font-mono text-xs text-dim/70 leading-relaxed">
           USDC lives on Tempo. Bridge in from any chain or fund directly via Tempo Wallet. Use "+ testnet" above for instant testnet funds.
         </p>
@@ -252,7 +208,7 @@ export function AccountClient() {
                 const role = t.buyer_address.toLowerCase() === address?.toLowerCase() ? 'buyer' : 'seller'
                 const statusColor = t.status === 'complete' ? 'text-accent'
                   : t.status === 'released' ? 'text-accent/70'
-                  : ['deposit_timeout','stripe_failed','refunded'].includes(t.status) ? 'text-danger/70'
+                  : ['deposit_timeout','disputed','refunded','stripe_failed'].includes(t.status) ? 'text-danger/70'
                   : 'text-caution'
                 return (
                   <tr key={t.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">

@@ -15,5 +15,25 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
 
   if (error ?? !data) notFound()
 
-  return <TradeDetail initialTrade={data as Trade} />
+  const trade = data as Trade
+
+  // Fetch seller's payment methods to show buyer where to send funds
+  const { data: sellerUser } = await db
+    .from('users')
+    .select('payment_methods')
+    .eq('address', trade.seller_address)
+    .single()
+
+  const sellerPaymentMethods = (sellerUser?.payment_methods ?? []) as Array<{
+    type: string
+    label: string
+    value: string
+  }>
+
+  return (
+    <TradeDetail
+      initialTrade={trade}
+      sellerPaymentMethods={sellerPaymentMethods}
+    />
+  )
 }

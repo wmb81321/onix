@@ -16,10 +16,6 @@ const schema = z.object({
   AGENT_ACCESS_KEY:         hex32,
   AGENT_ACCESS_KEY_ADDRESS: hex40,
 
-  // Stripe
-  STRIPE_SECRET_KEY:     z.string().startsWith('sk_'),
-  STRIPE_WEBHOOK_SECRET: z.string().startsWith('whsec_'),
-
   // Supabase (service-role — agent only, never browser)
   SUPABASE_URL:              z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(10),
@@ -30,12 +26,9 @@ const schema = z.object({
   CHARGE_AMOUNT_USDC: z.coerce.number().default(0.1),
   // Used by mppx to HMAC-bind challenge IDs (stateless verification)
   MPP_SECRET_KEY:     z.string().min(16),
-  // Bearer token required on all agent routes except /health and /webhooks/stripe
+  // Bearer token required on all agent routes except /health and mppx-gated endpoints
   AGENT_API_KEY:      z.string().min(32),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-
-  // Stripe Link (Phase 6 — optional, enables SPT buyer payment flow)
-  LINK_CLI_AUTH: z.string().optional(), // JSON config for @stripe/link-cli, written to disk at startup
 })
 
 const result = schema.safeParse(process.env)
