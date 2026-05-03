@@ -4,7 +4,9 @@ import type { Router } from '../lib/router.js'
 import { readJsonBody, json } from '../lib/router.js'
 import { db, updateTradeStatus } from '../lib/supabase.js'
 import { markPaymentSent, confirmPayment } from '../flows/flowManual.js'
+import { chargeServiceFee } from '../lib/mppx.js'
 import { watchDeposit } from '../tempo/monitor.js'
+import { transferUsdc } from '../tempo/wallet.js'
 import { ENV } from '../lib/env.js'
 
 const DEPOSIT_TIMEOUT_MS = 30 * 60 * 1000
@@ -15,6 +17,14 @@ const CreateTradeBody = z.object({
   seller_address: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
   usdc_amount:    z.number().positive(),
   usd_amount:     z.number().positive(),
+})
+
+const CancelTradeBody = z.object({
+  canceller_address: z.string().regex(/^0x[0-9a-fA-F]{40}$/i),
+})
+
+const RejectCancelBody = z.object({
+  rejector_address: z.string().regex(/^0x[0-9a-fA-F]{40}$/i),
 })
 
 
@@ -31,9 +41,14 @@ const ConfirmPaymentBody = z.object({
 
 export function registerTradeRoutes(router: Router): void {
 
-  // POST /trades — create trade, derive virtual deposit address, start deposit watcher
+  // POST /trades — taker pays 0.1 USDC service fee, then trade is created
   router.post('/trades', async (req, res) => {
     const body = CreateTradeBody.parse(await readJsonBody(req))
+
+    // externalId ties the charge to this (taker, order) pair — retries don't double-charge
+    const takerFeeId = `taker_${body.buyer_address.toLowerCase()}_${body.order_id}`
+    const charge = await chargeServiceFee(req, res, takerFeeId)
+    if (charge.status === 402) return
 
     const deadline = new Date(Date.now() + DEPOSIT_TIMEOUT_MS).toISOString()
 
@@ -165,6 +180,153 @@ export function registerTradeRoutes(router: Router): void {
       const code = msg.includes('Only the seller') ? 403 : 409
       json(res, code, { error: msg })
     }
+  })
+
+  // POST /trades/:id/cancel — mutual consent cancellation.
+  //
+  // First call from either party: sets status to 'cancel_requested', stores who asked.
+  // Second call from the OTHER party: confirms — executes refund (if USDC deposited) and marks trade cancelled.
+  // Second call from the SAME party: idempotent no-op.
+  //
+  // Cancellable statuses: created, deposited, payment_sent.
+  // If deposited/payment_sent: USDC refunded to seller.
+  // If created: no USDC involved, trade just cancelled.
+  router.post('/trades/:id/cancel', async (req, res, params) => {
+    const tradeId = params['id']
+    if (!tradeId) { json(res, 400, { error: 'Missing trade id' }); return }
+
+    const parsed = CancelTradeBody.safeParse(await readJsonBody(req))
+    if (!parsed.success) {
+      json(res, 400, { error: parsed.error.issues[0]?.message ?? 'Invalid input' })
+      return
+    }
+    const { canceller_address } = parsed.data
+
+    const { data: trade } = await db
+      .from('trades')
+      .select('id, order_id, buyer_address, seller_address, usdc_amount, status, cancel_requested_by, cancel_requested_from_status')
+      .eq('id', tradeId)
+      .single()
+
+    if (!trade) { json(res, 404, { error: 'Trade not found' }); return }
+
+    const addrLower = canceller_address.toLowerCase()
+    if (
+      trade.buyer_address.toLowerCase() !== addrLower &&
+      trade.seller_address.toLowerCase() !== addrLower
+    ) {
+      json(res, 403, { error: 'Not a party to this trade' })
+      return
+    }
+
+    const cancellableStatuses = ['created', 'deposited', 'payment_sent']
+
+    // First request: move to cancel_requested
+    if (cancellableStatuses.includes(trade.status)) {
+      await db
+        .from('trades')
+        .update({
+          status:                      'cancel_requested',
+          cancel_requested_by:          addrLower,
+          cancel_requested_from_status: trade.status,
+        })
+        .eq('id', tradeId)
+      console.log(`[trades] Trade ${tradeId} cancel requested by ${canceller_address} (was: ${trade.status})`)
+      json(res, 200, { ok: true, status: 'cancel_requested' })
+      return
+    }
+
+    if (trade.status !== 'cancel_requested') {
+      json(res, 409, { error: `Cannot cancel a trade with status '${trade.status}'` })
+      return
+    }
+
+    // Same party re-calling: idempotent no-op
+    if (trade.cancel_requested_by?.toLowerCase() === addrLower) {
+      json(res, 200, { ok: true, status: 'cancel_requested' })
+      return
+    }
+
+    // Other party confirms the cancellation — execute it
+    const fromStatus = trade.cancel_requested_from_status ?? 'created'
+    const needsRefund = ['deposited', 'payment_sent'].includes(fromStatus)
+
+    // Re-open the order so another counterparty can match it
+    await db.from('orders').update({ status: 'open' }).eq('id', trade.order_id).eq('status', 'matched')
+
+    if (needsRefund) {
+      await updateTradeStatus(tradeId, 'refunding')
+      try {
+        const txHash = await transferUsdc(
+          trade.seller_address as `0x${string}`,
+          Number(trade.usdc_amount),
+        )
+        await db.from('trades').update({ status: 'refunded' }).eq('id', tradeId)
+        console.log(`[trades] Trade ${tradeId} refunded (mutual cancel) — tx ${txHash}`)
+        json(res, 200, { ok: true, status: 'refunded', tx_hash: txHash })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.error(`[trades] Refund failed for ${tradeId}:`, msg)
+        json(res, 500, { error: `Refund transfer failed: ${msg}` })
+      }
+    } else {
+      await updateTradeStatus(tradeId, 'cancelled')
+      console.log(`[trades] Trade ${tradeId} cancelled (mutual) by ${canceller_address}`)
+      json(res, 200, { ok: true, status: 'cancelled' })
+    }
+  })
+
+  // POST /trades/:id/reject-cancel — the non-requesting party rejects the cancel request.
+  // Reverts the trade to the status it was in before cancel_requested.
+  router.post('/trades/:id/reject-cancel', async (req, res, params) => {
+    const tradeId = params['id']
+    if (!tradeId) { json(res, 400, { error: 'Missing trade id' }); return }
+
+    const parsed = RejectCancelBody.safeParse(await readJsonBody(req))
+    if (!parsed.success) {
+      json(res, 400, { error: parsed.error.issues[0]?.message ?? 'Invalid input' })
+      return
+    }
+    const { rejector_address } = parsed.data
+
+    const { data: trade } = await db
+      .from('trades')
+      .select('id, buyer_address, seller_address, status, cancel_requested_by, cancel_requested_from_status')
+      .eq('id', tradeId)
+      .single()
+
+    if (!trade) { json(res, 404, { error: 'Trade not found' }); return }
+    if (trade.status !== 'cancel_requested') {
+      json(res, 409, { error: 'No pending cancel request on this trade' })
+      return
+    }
+
+    const addrLower = rejector_address.toLowerCase()
+    if (
+      trade.buyer_address.toLowerCase() !== addrLower &&
+      trade.seller_address.toLowerCase() !== addrLower
+    ) {
+      json(res, 403, { error: 'Not a party to this trade' })
+      return
+    }
+
+    if (trade.cancel_requested_by?.toLowerCase() === addrLower) {
+      json(res, 400, { error: 'You cannot reject your own cancel request — use cancel to keep the request or wait for the other party' })
+      return
+    }
+
+    const previousStatus = trade.cancel_requested_from_status ?? 'deposited'
+    await db
+      .from('trades')
+      .update({
+        status:                      previousStatus,
+        cancel_requested_by:          null,
+        cancel_requested_from_status: null,
+      })
+      .eq('id', tradeId)
+
+    console.log(`[trades] Trade ${tradeId} cancel rejected by ${rejector_address} — reverted to ${previousStatus}`)
+    json(res, 200, { ok: true, status: previousStatus })
   })
 
   // POST /trades/:id/settle — deprecated; kept for backward compat with existing agent scripts.

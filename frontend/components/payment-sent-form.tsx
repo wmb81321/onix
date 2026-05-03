@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 const PAYMENT_METHODS = ['Zelle', 'Venmo', 'CashApp', 'Bank Transfer', 'Wire', 'Other'] as const
 
@@ -13,11 +13,33 @@ interface Props {
 }
 
 export function PaymentSentForm({ tradeId, buyerAddress, usdAmount, sellerPaymentMethods, onSent }: Props) {
-  const [method,    setMethod]    = useState('')
-  const [reference, setReference] = useState('')
-  const [proofUrl,  setProofUrl]  = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error,     setError]     = useState<string | null>(null)
+  const [method,      setMethod]      = useState('')
+  const [reference,   setReference]   = useState('')
+  const [proofUrl,    setProofUrl]    = useState('')
+  const [uploading,   setUploading]   = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [submitting,  setSubmitting]  = useState(false)
+  const [error,       setError]       = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadError(null)
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/upload-proof', { method: 'POST', body: fd })
+      const data = await res.json() as { url?: string; error?: string }
+      if (!res.ok) { setUploadError(data.error ?? 'Upload failed'); return }
+      setProofUrl(data.url ?? '')
+    } catch {
+      setUploadError('Upload failed — please try again')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -124,19 +146,61 @@ export function PaymentSentForm({ tradeId, buyerAddress, usdAmount, sellerPaymen
         />
       </label>
 
-      {/* Optional proof URL */}
-      <label className="block space-y-1.5">
+      {/* Proof — upload or URL */}
+      <div className="space-y-1.5">
         <span className="font-mono text-[10px] text-dim uppercase tracking-widest">
-          Proof of payment URL <span className="text-dim/40 normal-case">(optional)</span>
+          Proof of payment <span className="text-dim/40 normal-case">(optional)</span>
         </span>
-        <input
-          type="url"
-          value={proofUrl}
-          onChange={(e) => setProofUrl(e.target.value)}
-          placeholder="https://..."
-          className="w-full bg-canvas border border-white/[0.07] rounded-lg px-3 py-2 font-mono text-xs text-ink placeholder:text-dim/30 outline-none focus:border-accent/30 transition-colors"
-        />
-      </label>
+
+        {/* File upload */}
+        <div
+          className="flex items-center gap-3 px-3 py-2.5 bg-canvas border border-dashed border-white/[0.12] rounded-lg cursor-pointer hover:border-white/25 transition-colors"
+          onClick={() => fileRef.current?.click()}
+        >
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          {uploading ? (
+            <span className="font-mono text-[10px] text-dim">Uploading…</span>
+          ) : proofUrl ? (
+            <span className="font-mono text-[10px] text-accent truncate flex-1">
+              ✓ Image uploaded
+            </span>
+          ) : (
+            <span className="font-mono text-[10px] text-dim/50">
+              Click to upload screenshot (JPEG, PNG, WebP — max 5 MB)
+            </span>
+          )}
+          {proofUrl && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setProofUrl(''); if (fileRef.current) fileRef.current.value = '' }}
+              className="font-mono text-[10px] text-danger/60 hover:text-danger shrink-0"
+            >
+              remove
+            </button>
+          )}
+        </div>
+
+        {uploadError && (
+          <p className="font-mono text-[10px] text-danger/70">{uploadError}</p>
+        )}
+
+        {/* Fallback: paste URL */}
+        {!proofUrl && (
+          <input
+            type="url"
+            value={proofUrl}
+            onChange={(e) => setProofUrl(e.target.value)}
+            placeholder="Or paste an image URL…"
+            className="w-full bg-canvas border border-white/[0.07] rounded-lg px-3 py-2 font-mono text-xs text-ink placeholder:text-dim/30 outline-none focus:border-accent/30 transition-colors"
+          />
+        )}
+      </div>
 
       {error && (
         <p className="font-mono text-[10px] text-danger/70">{error}</p>

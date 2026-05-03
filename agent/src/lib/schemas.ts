@@ -12,6 +12,9 @@ export const TradeStatusSchema = z.enum([
   'deposit_timeout',
   'disputed',
   'refunded',
+  'cancelled',         // migration 009 — cancelled before deposit
+  'refunding',         // migration 009 — USDC refund in-flight to seller
+  'cancel_requested',  // migration 010 — one party requested cancel; waiting for other to confirm
   // Legacy statuses (old Stripe flow — kept for backward compat with existing rows)
   'fee_paid',
   'fiat_sent',
@@ -38,6 +41,9 @@ export const TradeRowSchema = z.object({
   payment_proof_url:    z.string().nullable(),
   payment_sent_at:      z.string().nullable(),
   payment_confirmed_at: z.string().nullable(),
+  // Mutual cancel fields (migration 010)
+  cancel_requested_by:          z.string().nullable().optional(),
+  cancel_requested_from_status: z.string().nullable().optional(),
   created_at:           z.string(),
   updated_at:           z.string(),
 }).passthrough()

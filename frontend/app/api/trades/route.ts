@@ -1,36 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// POST /api/trades — proxy to agent with transparent 402 passthrough.
+// The agent charges a 0.1 USDC taker fee via mppx; the browser mppx/client
+// intercepts the 402, pays, and retries automatically.
 export async function POST(req: NextRequest) {
   const agentUrl = process.env.FACILITATOR_URL
   if (!agentUrl) {
     return NextResponse.json({ error: 'Agent not configured' }, { status: 503 })
   }
 
-  const body = await req.json() as unknown
+  const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+  const authorization = req.headers.get('authorization')
+  if (authorization) forwardHeaders['authorization'] = authorization
 
-  let res: Response
+  const body = await req.text()
+
+  let agentRes: Response
   try {
-    res = await fetch(`${agentUrl}/trades`, {
+    agentRes = await fetch(`${agentUrl}/trades`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: forwardHeaders,
+      body,
+      cache: 'no-store',
     })
-  } catch (e) {
-    return NextResponse.json(
-      { error: 'Settlement agent unreachable — try again in a moment' },
-      { status: 503 },
-    )
+  } catch (err) {
+    console.error('[POST /api/trades] fetch to agent failed:', err)
+    return NextResponse.json({ error: 'Agent unreachable' }, { status: 502 })
   }
 
-  const text = await res.text()
-  let data: unknown
-  try {
-    data = JSON.parse(text)
-  } catch {
-    return NextResponse.json(
-      { error: `Agent error (${res.status})` },
-      { status: res.status >= 500 ? res.status : 502 },
-    )
+  const text = await agentRes.text()
+  const resHeaders = new Headers({ 'Content-Type': 'application/json' })
+
+  for (const header of ['www-authenticate', 'x-payment-response', 'x-payment-required', 'accept-payment']) {
+    const val = agentRes.headers.get(header)
+    if (val) resHeaders.set(header, val)
   }
-  return NextResponse.json(data, { status: res.status })
+
+  return new NextResponse(text, { status: agentRes.status, headers: resHeaders })
 }

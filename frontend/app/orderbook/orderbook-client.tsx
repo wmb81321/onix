@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAccount } from 'wagmi'
+import { useAccount, useWalletClient } from 'wagmi'
+import { Mppx as MppxClient, tempo as mppxTempo } from 'mppx/client'
 import { createClient, type Order } from '@/lib/supabase'
 import { PlaceOrderModal } from '@/components/place-order-modal'
 
@@ -18,6 +19,7 @@ export function OrderBookClient({ initialOrders }: { initialOrders: Order[] }) {
   const [expandedId,  setExpandedId]  = useState<string | null>(null)
   const [noPayMethod, setNoPayMethod] = useState(false)
   const { address } = useAccount()
+  const { data: walletClient } = useWalletClient()
   const router      = useRouter()
   // Stable client — createClient() must not be called on every render or the
   // Realtime subscription is torn down and re-created constantly.
@@ -97,17 +99,30 @@ export function OrderBookClient({ initialOrders }: { initialOrders: Order[] }) {
   }
 
   async function matchOrder(order: Order) {
-    if (!address) { setMatchError('Connect your wallet to match orders'); return }
-    if (order.user_address === address) { setMatchError('Cannot match your own order'); return }
+    if (!address)      { setMatchError('Connect your wallet to match orders'); return }
+    if (!walletClient) { setMatchError('Wallet not ready — try again'); return }
+    if (order.user_address.toLowerCase() === address.toLowerCase()) {
+      setMatchError('Cannot match your own order')
+      return
+    }
 
     setMatching(order.id)
     setMatchError(null)
 
-    const buyerAddress  = order.type === 'sell' ? address           : order.user_address
+    const buyerAddress  = order.type === 'sell' ? address            : order.user_address
     const sellerAddress = order.type === 'sell' ? order.user_address : address
 
     try {
-      const res = await fetch('/api/trades', {
+      // Taker pays 0.1 USDC service fee via mppx x402 (same push-mode pattern as order creation)
+      const mppx = MppxClient.create({
+        methods: [mppxTempo.charge({
+          getClient: () => walletClient as never,
+          mode: 'push',
+        })],
+        polyfill: false,
+      })
+
+      const res = await mppx.fetch('/api/trades', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -121,8 +136,13 @@ export function OrderBookClient({ initialOrders }: { initialOrders: Order[] }) {
       const data = await res.json() as { trade_id?: string; error?: string }
       if (!res.ok) { setMatchError(data.error ?? 'Failed to create trade'); return }
       router.push(`/trades/${data.trade_id}`)
-    } catch {
-      setMatchError('Network error — please try again')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel')) {
+        setMatchError('Payment cancelled')
+      } else {
+        setMatchError('Network error — please try again')
+      }
     } finally {
       setMatching(null)
     }

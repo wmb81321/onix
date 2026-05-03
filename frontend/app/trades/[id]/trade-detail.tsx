@@ -23,13 +23,18 @@ const STEP_LABELS: Record<string, string> = {
   deposit_timeout:   'Deposit timed out',
   disputed:          'Under dispute',
   refunded:          'Refunded',
+  cancelled:         'Cancelled',
+  refunding:         'Refunding USDC…',
+  cancel_requested:  'Cancellation requested',
   // Legacy
   fee_paid:          'Service fee paid',
   fiat_sent:         'Fiat sent',
   stripe_failed:     'Payment failed',
 }
 
-const FAILED: TradeStatus[] = ['deposit_timeout', 'disputed', 'refunded', 'stripe_failed']
+const FAILED: TradeStatus[] = ['deposit_timeout', 'disputed', 'refunded', 'cancelled', 'refunding', 'stripe_failed']
+
+const CANCELLABLE: TradeStatus[] = ['created', 'deposited', 'payment_sent']
 
 type PaymentMethod = { type: string; label: string; value: string }
 
@@ -40,14 +45,19 @@ export function TradeDetail({
   initialTrade: Trade
   sellerPaymentMethods?: PaymentMethod[]
 }) {
-  const [trade,  setTrade]  = useState<Trade>(initialTrade)
-  const [copied, setCopied] = useState(false)
+  const [trade,         setTrade]         = useState<Trade>(initialTrade)
+  const [copied,        setCopied]        = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [cancelError,   setCancelError]   = useState<string | null>(null)
   const { address } = useAccount()
 
   const isSeller = address?.toLowerCase() === trade.seller_address.toLowerCase()
   const isBuyer  = address?.toLowerCase() === trade.buyer_address.toLowerCase()
   const isFailed = FAILED.includes(trade.status)
   const isDone   = trade.status === 'complete' || trade.status === 'released'
+
+  const iAmRequester = trade.status === 'cancel_requested' &&
+    address?.toLowerCase() === (trade as Trade & { cancel_requested_by?: string | null }).cancel_requested_by?.toLowerCase()
 
   const poll = useCallback(async () => {
     try {
@@ -67,6 +77,66 @@ export function TradeDetail({
     void navigator.clipboard.writeText(trade.virtual_deposit_address)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function requestCancel() {
+    if (!address) return
+    setCancelLoading(true)
+    setCancelError(null)
+    try {
+      const res = await fetch(`/api/trades/${trade.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canceller_address: address }),
+      })
+      const data = await res.json() as { ok?: boolean; status?: string; error?: string }
+      if (!res.ok) { setCancelError(data.error ?? 'Failed to request cancellation'); return }
+      await poll()
+    } catch {
+      setCancelError('Network error — please try again')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
+  async function confirmCancel() {
+    if (!address) return
+    setCancelLoading(true)
+    setCancelError(null)
+    try {
+      const res = await fetch(`/api/trades/${trade.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canceller_address: address }),
+      })
+      const data = await res.json() as { ok?: boolean; status?: string; error?: string }
+      if (!res.ok) { setCancelError(data.error ?? 'Failed to confirm cancellation'); return }
+      await poll()
+    } catch {
+      setCancelError('Network error — please try again')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
+
+  async function rejectCancel() {
+    if (!address) return
+    setCancelLoading(true)
+    setCancelError(null)
+    try {
+      const res = await fetch(`/api/trades/${trade.id}/reject-cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rejector_address: address }),
+      })
+      const data = await res.json() as { ok?: boolean; status?: string; error?: string }
+      if (!res.ok) { setCancelError(data.error ?? 'Failed to reject cancellation'); return }
+      await poll()
+    } catch {
+      setCancelError('Network error — please try again')
+    } finally {
+      setCancelLoading(false)
+    }
   }
 
   const activeStep = STEPS.indexOf(trade.status as TradeStatus)
@@ -203,6 +273,66 @@ export function TradeDetail({
           <span className="font-mono text-xs text-dim">
             Waiting for seller to confirm receipt and release USDC…
           </span>
+        </div>
+      )}
+
+      {/* Cancel request — shown to the requesting party */}
+      {trade.status === 'cancel_requested' && iAmRequester && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-caution/5 rounded-xl border border-caution/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-caution animate-pulse shrink-0" />
+          <span className="font-mono text-xs text-caution/80">
+            Cancellation requested — waiting for the other party to confirm or reject.
+          </span>
+        </div>
+      )}
+
+      {/* Cancel confirmation panel — shown to the non-requesting party */}
+      {trade.status === 'cancel_requested' && (isBuyer || isSeller) && !iAmRequester && (
+        <div className="bg-caution/5 rounded-xl border border-caution/30 p-4 space-y-3">
+          <span className="font-mono text-[10px] text-caution uppercase tracking-widest">
+            Cancellation requested
+          </span>
+          <p className="font-mono text-xs text-dim/80 leading-relaxed">
+            The other party has requested to cancel this trade.
+            {(trade as Trade & { cancel_requested_from_status?: string | null }).cancel_requested_from_status === 'created'
+              ? ' No USDC has been deposited — the trade will simply be cancelled.'
+              : ' USDC will be refunded to the seller if you confirm.'}
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => void confirmCancel()}
+              disabled={cancelLoading}
+              className="flex-1 py-2 rounded-lg bg-caution/15 text-caution font-mono text-xs font-semibold hover:bg-caution/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-caution/30"
+            >
+              {cancelLoading ? 'Processing…' : 'Confirm cancellation'}
+            </button>
+            <button
+              onClick={() => void rejectCancel()}
+              disabled={cancelLoading}
+              className="flex-1 py-2 rounded-lg bg-white/[0.04] text-dim font-mono text-xs font-semibold hover:bg-white/[0.07] transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-white/[0.07]"
+            >
+              Reject — continue trade
+            </button>
+          </div>
+          {cancelError && (
+            <p className="font-mono text-[10px] text-danger/70">{cancelError}</p>
+          )}
+        </div>
+      )}
+
+      {/* Request cancellation button — shown to either party when trade is still active */}
+      {(isBuyer || isSeller) && CANCELLABLE.includes(trade.status as TradeStatus) && (
+        <div className="flex flex-col gap-1.5">
+          <button
+            onClick={() => void requestCancel()}
+            disabled={cancelLoading}
+            className="w-full py-2 rounded-lg font-mono text-[10px] text-danger/50 border border-danger/15 hover:bg-danger/5 hover:text-danger/70 hover:border-danger/25 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            {cancelLoading ? 'Processing…' : 'Request cancellation'}
+          </button>
+          {cancelError && (
+            <p className="font-mono text-[10px] text-danger/70 text-center">{cancelError}</p>
+          )}
         </div>
       )}
 
@@ -401,8 +531,12 @@ function RatingWidget({
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: TradeStatus }) {
-  const color = status === 'complete'   ? 'text-accent border-accent/30 bg-accent/5'
-    : FAILED.includes(status)           ? 'text-danger border-danger/30 bg-danger/5'
+  const color = (status === 'complete' || status === 'released')
+    ? 'text-accent border-accent/30 bg-accent/5'
+    : (FAILED.includes(status) && status !== 'cancel_requested')
+    ? 'text-danger border-danger/30 bg-danger/5'
+    : status === 'cancel_requested'
+    ? 'text-caution border-caution/30 bg-caution/5'
     : 'text-caution border-caution/30 bg-caution/5'
   return (
     <span className={`px-2.5 py-1 rounded-full border font-mono text-[10px] uppercase tracking-widest ${color}`}>

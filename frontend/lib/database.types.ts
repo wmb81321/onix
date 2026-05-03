@@ -92,6 +92,9 @@ export type Database = {
           payment_proof_url: string | null
           payment_sent_at: string | null
           payment_confirmed_at: string | null
+          // Mutual cancel fields (migration 010)
+          cancel_requested_by: string | null
+          cancel_requested_from_status: string | null
           // Legacy Stripe columns
           stripe_payout_id: string | null
           stripe_account_id: string | null
@@ -115,6 +118,8 @@ export type Database = {
           payment_proof_url?: string | null
           payment_sent_at?: string | null
           payment_confirmed_at?: string | null
+          cancel_requested_by?: string | null
+          cancel_requested_from_status?: string | null
         }
         Relationships: [
           {
@@ -170,6 +175,9 @@ export type Database = {
         | 'deposit_timeout'
         | 'disputed'
         | 'refunded'
+        | 'cancelled'
+        | 'refunding'
+        | 'cancel_requested'
         | 'fee_paid'
         | 'fiat_sent'
         | 'stripe_failed'
